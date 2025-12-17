@@ -1,12 +1,46 @@
+# Java/Gradle build outputs
+# Build directories
+/build/
+**/build/
+
+# Gradle cache
+/.gradle/
+**/.gradle/
+
+# IDE and editor files
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+.vscode/
+
+# Compiled classes and logs
+*.class
+*.log
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Other common output folders
+out/
+bin/
+
+# Temporary/editor swap files
+*.swp
+*.swo
+*.tmp
+*.temp
+
 # Ignore dev docs directory
 docs/*
 
 # Allow specific files
 !docs/todo-frontend.md
 !docs/todo-backend.md
-<<<<<<< HEAD
-
-=======
 !docs/dev-process-3person.md
 !docs/todo-testing.md
->>>>>>> 0a7a3ac (docs:add dev docs)
+！docs/API/*
+.copilot/

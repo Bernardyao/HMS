@@ -1,0 +1,87 @@
+# ============================================================
+# Production Environment Configuration
+# ============================================================
+# WARNING: 请确保所有敏感信息已妥善保护！
+# ============================================================
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+    session:
+      timeout: 30m
+      cookie:
+        http-only: true
+        secure: true
+  # 启用压缩
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+    min-response-size: 1024
+  # 生产环境不暴露错误信息
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+    include-exception: false
+    whitelabel:
+      enabled: false
+
+spring:
+  # 数据源配置 - 生产环境
+  # 重要：请修改为实际的生产环境数据库配置
+  datasource:
+    url: jdbc:postgresql://prod-db-server:5432/his_project
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:changeme}
+    driver-class-name: org.postgresql.Driver
+    # HikariCP 连接池配置 - 生产环境优化
+    hikari:
+      minimum-idle: 10
+      maximum-pool-size: 50
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      connection-timeout: 30000
+      connection-test-query: SELECT 1
+      leak-detection-threshold: 60000
+
+  # JPA/Hibernate 配置 - 生产环境
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      # 重要：生产环境绝不使用 create 或 create-drop！
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        use_sql_comments: false
+        generate_statistics: false
+        cache:
+          use_second_level_cache: false
+          use_query_cache: false
+
+# 日志配置 - 生产环境
+logging:
+  level:
+    root: WARN
+    com.his: INFO
+    org.hibernate.SQL: WARN
+    org.springframework.web: WARN
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+  file:
+    name: logs/his-application.log
+    max-size: 100MB
+    max-history: 30
+
+# Actuator 配置 - 生产环境安全加固
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never

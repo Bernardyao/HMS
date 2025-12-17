@@ -1,0 +1,42 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.1' // 使用较新的稳定版
+    id 'io.spring.dependency-management' version '1.1.4'
+}
+
+group = 'com.his'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    sourceCompatibility = '17' // 确保你安装了 JDK 17 或以上
+}
+
+repositories {
+
+    mavenCentral() // 从中央仓库下载
+}
+
+dependencies {
+    // 1. Web 模块 (提供 REST API)
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // 2. JPA (提供数据库操作, 解决 javax.persistence 报错)
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // 3. PostgreSQL 驱动
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // 4. Lombok (解决 lombok 报错)
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    // 5. Knife4j (Swagger 增强版，提供 API 文档)
+    implementation 'com.github.xiaoymin:knife4j-openapi3-jakarta-spring-boot-starter:4.4.0'
+
+    // 测试依赖
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}

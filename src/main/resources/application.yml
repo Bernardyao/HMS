@@ -1,0 +1,14 @@
+# ============================================================
+# HIS (Hospital Information System) - Main Configuration
+# ============================================================
+
+spring:
+  profiles:
+    # 激活的环境配置 (dev/test/prod)
+    active: dev
+    # 引入公共配置
+    include: common
+  
+  application:
+    name: his-application
+    version: 1.0.0
