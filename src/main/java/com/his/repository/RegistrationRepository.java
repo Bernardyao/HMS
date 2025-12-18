@@ -81,4 +81,21 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
      */
     @Query("SELECT r FROM Registration r WHERE r.visitDate BETWEEN :startDate AND :endDate AND r.isDeleted = 0 ORDER BY r.visitDate, r.createdAt")
     List<Registration> findByDateRange(@Param("startDate") LocalDate startDate, @Param("endDate") LocalDate endDate);
+
+    /**
+     * 检查患者当天是否已挂号同一医生（防止重复挂号）
+     * 只检查待就诊状态（status = 0）的挂号记录
+     */
+    @Query("SELECT COUNT(r) > 0 FROM Registration r WHERE r.patient.mainId = :patientId " +
+           "AND r.doctor.mainId = :doctorId " +
+           "AND r.visitDate = :visitDate " +
+           "AND r.status = :status " +
+           "AND r.isDeleted = :isDeleted")
+    boolean existsByPatientAndDoctorAndDateAndStatusWaiting(
+            @Param("patientId") Long patientId,
+            @Param("doctorId") Long doctorId,
+            @Param("visitDate") LocalDate visitDate,
+            @Param("status") Short status,
+            @Param("isDeleted") Short isDeleted
+    );
 }

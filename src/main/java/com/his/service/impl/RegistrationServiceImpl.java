@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
@@ -59,13 +60,33 @@ public class RegistrationServiceImpl implements RegistrationService {
         Doctor doctor = doctorRepository.findById(dto.getDoctorId())
                 .orElseThrow(() -> new IllegalArgumentException("医生不存在，ID: " + dto.getDoctorId()));
 
-        // 4. 创建挂号单
+        // 4. 检查是否重复挂号（同一患者、同一医生、同一天、待就诊状态）
+        LocalDate today = LocalDate.now();
+        log.info("开始重复挂号检查，参数: 患者ID={}, 医生ID={}, 日期={}", 
+                patient.getMainId(), doctor.getMainId(), today);
+        
+        boolean alreadyRegistered = registrationRepository.existsByPatientAndDoctorAndDateAndStatusWaiting(
+                patient.getMainId(), doctor.getMainId(), today, (short) 0, (short) 0);
+        
+        log.info("重复挂号检查结果: alreadyRegistered = {}", alreadyRegistered);
+        
+        if (alreadyRegistered) {
+            log.warn("检测到重复挂号尝试，患者: {} (ID: {}), 医生: {} (ID: {}), 日期: {}", 
+                    patient.getName(), patient.getMainId(), doctor.getName(), doctor.getMainId(), today);
+            throw new IllegalStateException(
+                    String.format("患者 %s 今日已挂号 %s 医生，请勿重复挂号", 
+                            patient.getName(), doctor.getName()));
+        }
+        log.info("重复挂号检查通过，患者: {} (ID: {}), 医生: {} (ID: {})", 
+                patient.getName(), patient.getMainId(), doctor.getName(), doctor.getMainId());
+
+        // 5. 创建挂号单
         Registration registration = createRegistration(patient, department, doctor, dto);
         Registration savedRegistration = registrationRepository.save(registration);
         log.info("挂号单创建成功，挂号ID: {}, 挂号流水号: {}", 
                 savedRegistration.getMainId(), savedRegistration.getRegNo());
 
-        // 5. 构建返回对象
+        // 6. 构建返回对象
         return buildRegistrationVO(savedRegistration, patient, department, doctor);
     }
 
