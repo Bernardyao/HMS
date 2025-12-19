@@ -28,60 +28,94 @@ public class DoctorServiceImpl implements DoctorService {
     private final DepartmentRepository departmentRepository;
 
     /**
-     * 获取今日候诊列表
+     * 获取今日候诊列表（支持个人/科室混合视图）
      * 防御性编程: 完整的参数验证和业务状态检查
      *
-     * @param deptId 科室ID
+     * @param doctorId 医生ID（个人视图时使用）
+     * @param deptId 科室ID（科室视图时使用，或用于验证）
+     * @param showAllDept 是否显示科室所有患者（true=科室视图，false=个人视图）
      * @return 候诊列表
-     * @throws IllegalArgumentException 当科室ID无效或科室不存在时
+     * @throws IllegalArgumentException 当参数无效或科室/医生不存在时
      */
     @Override
     @Transactional(readOnly = true)
-    public List<RegistrationVO> getWaitingList(Long deptId) {
-        // 防御性编程1: 参数非空验证
-        if (deptId == null) {
-            log.error("查询候诊列表失败: 科室ID为null");
-            throw new IllegalArgumentException("科室ID不能为空");
+    public List<RegistrationVO> getWaitingList(Long doctorId, Long deptId, boolean showAllDept) {
+        log.info("查询候诊列表，医生ID: {}, 科室ID: {}, 科室视图: {}, 日期: {}", 
+                doctorId, deptId, showAllDept, LocalDate.now());
+        
+        // 防御性编程1: 根据视图模式验证必需参数
+        if (showAllDept) {
+            // 科室视图：必须提供科室ID
+            if (deptId == null) {
+                log.error("查询候诊列表失败（科室视图）: 科室ID为null");
+                throw new IllegalArgumentException("科室视图模式下，科室ID不能为空");
+            }
+            if (deptId <= 0) {
+                log.error("查询候诊列表失败（科室视图）: 科室ID无效 - {}", deptId);
+                throw new IllegalArgumentException("科室ID必须大于0，当前值: " + deptId);
+            }
+        } else {
+            // 个人视图：必须提供医生ID
+            if (doctorId == null) {
+                log.error("查询候诊列表失败（个人视图）: 医生ID为null");
+                throw new IllegalArgumentException("个人视图模式下，医生ID不能为空");
+            }
+            if (doctorId <= 0) {
+                log.error("查询候诊列表失败（个人视图）: 医生ID无效 - {}", doctorId);
+                throw new IllegalArgumentException("医生ID必须大于0，当前值: " + doctorId);
+            }
         }
         
-        // 防御性编程2: 参数有效性验证
-        if (deptId <= 0) {
-            log.error("查询候诊列表失败: 科室ID无效 - {}", deptId);
-            throw new IllegalArgumentException("科室ID必须大于0，当前值: " + deptId);
-        }
+        List<Registration> registrations;
         
-        // 防御性编程3: 验证科室是否存在
-        Department department = departmentRepository.findById(deptId).orElse(null);
-        if (department == null) {
-            log.warn("查询候诊列表失败: 科室不存在，ID: {}", deptId);
-            throw new IllegalArgumentException("科室不存在，ID: " + deptId);
+        if (showAllDept) {
+            // 科室视图：查询整个科室的候诊列表
+            // 防御性编程2: 验证科室是否存在
+            Department department = departmentRepository.findById(deptId).orElse(null);
+            if (department == null) {
+                log.warn("查询候诊列表失败: 科室不存在，ID: {}", deptId);
+                throw new IllegalArgumentException("科室不存在，ID: " + deptId);
+            }
+            
+            // 防御性编程3: 验证科室是否被删除
+            if (department.getIsDeleted() != null && department.getIsDeleted() == 1) {
+                log.warn("查询候诊列表失败: 科室已被删除，ID: {}, 名称: {}", deptId, department.getName());
+                throw new IllegalArgumentException("科室已停用: " + department.getName());
+            }
+            
+            // 防御性编程4: 验证科室是否启用
+            if (department.getStatus() != null && department.getStatus() == 0) {
+                log.warn("查询候诊列表失败: 科室已停用，ID: {}, 名称: {}", deptId, department.getName());
+                throw new IllegalArgumentException("科室已停用: " + department.getName());
+            }
+            
+            log.info("使用科室视图查询，科室ID: {}, 科室名称: {}", deptId, department.getName());
+            
+            // 查询今日、指定科室、待就诊状态的挂号记录，按排队号升序
+            registrations = registrationRepository
+                    .findByDepartment_MainIdAndVisitDateAndStatusAndIsDeletedOrderByQueueNoAsc(
+                            deptId,
+                            LocalDate.now(),
+                            RegStatusEnum.WAITING.getCode(),
+                            (short) 0
+                    );
+            
+            log.info("科室[{}]查询到 {} 条候诊记录", department.getName(), registrations.size());
+        } else {
+            // 个人视图：仅查询分配给当前医生的候诊列表
+            log.info("使用个人视图查询，医生ID: {}", doctorId);
+            
+            // 查询今日、指定医生、待就诊状态的挂号记录，按排队号升序
+            registrations = registrationRepository
+                    .findByDoctor_MainIdAndVisitDateAndStatusAndIsDeletedOrderByQueueNoAsc(
+                            doctorId,
+                            LocalDate.now(),
+                            RegStatusEnum.WAITING.getCode(),
+                            (short) 0
+                    );
+            
+            log.info("医生[ID:{}]查询到 {} 条候诊记录", doctorId, registrations.size());
         }
-        
-        // 防御性编程4: 验证科室是否被删除
-        if (department.getIsDeleted() != null && department.getIsDeleted() == 1) {
-            log.warn("查询候诊列表失败: 科室已被删除，ID: {}, 名称: {}", deptId, department.getName());
-            throw new IllegalArgumentException("科室已停用: " + department.getName());
-        }
-        
-        // 防御性编程5: 验证科室是否启用
-        if (department.getStatus() != null && department.getStatus() == 0) {
-            log.warn("查询候诊列表失败: 科室已停用，ID: {}, 名称: {}", deptId, department.getName());
-            throw new IllegalArgumentException("科室已停用: " + department.getName());
-        }
-
-        log.info("查询科室候诊列表，科室ID: {}, 科室名称: {}, 日期: {}", 
-                deptId, department.getName(), LocalDate.now());
-
-        // 查询今日、指定科室、待就诊状态的挂号记录，按排队号升序
-        List<Registration> registrations = registrationRepository
-                .findByDepartment_MainIdAndVisitDateAndStatusAndIsDeletedOrderByQueueNoAsc(
-                        deptId,
-                        LocalDate.now(),
-                        RegStatusEnum.WAITING.getCode(),
-                        (short) 0
-                );
-
-        log.info("科室[{}]查询到 {} 条候诊记录", department.getName(), registrations.size());
 
         // 转换为 VO
         return registrations.stream()

@@ -100,8 +100,14 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
     );
 
     /**
-     * 查询指定科室、指定日期、指定状态的挂号记录，按排队号升序排列（医生工作站专用）
+     * 查询指定科室、指定日期、指定状态的挂号记录，按排队号升序排列（医生工作站 - 科室视图）
      */
     List<Registration> findByDepartment_MainIdAndVisitDateAndStatusAndIsDeletedOrderByQueueNoAsc(
             Long deptId, LocalDate visitDate, Short status, Short isDeleted);
+
+    /**
+     * 查询指定医生、指定日期、指定状态的挂号记录，按排队号升序排列（医生工作站 - 个人视图）
+     */
+    List<Registration> findByDoctor_MainIdAndVisitDateAndStatusAndIsDeletedOrderByQueueNoAsc(
+            Long doctorId, LocalDate visitDate, Short status, Short isDeleted);
 }

@@ -11,12 +11,14 @@ import java.util.List;
 public interface DoctorService {
 
     /**
-     * 获取今日候诊列表
+     * 获取今日候诊列表（支持个人/科室混合视图）
      *
-     * @param deptId 科室ID
+     * @param doctorId 医生ID（个人视图时使用）
+     * @param deptId 科室ID（科室视图时使用，或用于验证）
+     * @param showAllDept 是否显示科室所有患者（true=科室视图，false=个人视图）
      * @return 候诊列表
      */
-    List<RegistrationVO> getWaitingList(Long deptId);
+    List<RegistrationVO> getWaitingList(Long doctorId, Long deptId, boolean showAllDept);
 
     /**
      * 更新挂号状态（接诊或完成就诊）

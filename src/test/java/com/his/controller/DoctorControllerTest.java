@@ -1,6 +1,5 @@
 package com.his.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.his.entity.Department;
 import com.his.entity.Doctor;
 import com.his.entity.Patient;
@@ -47,9 +46,6 @@ class DoctorControllerTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private ObjectMapper objectMapper;
-
-    @Autowired
     private DepartmentRepository departmentRepository;
 
     @Autowired
@@ -75,9 +71,6 @@ class DoctorControllerTest {
 
     private Long testDeptId;
     private Long testDoctorId;
-    private Long testPatient1Id;
-    private Long testPatient2Id;
-    private Long testPatient3Id;
     private Long testReg1Id;
     private Long testReg2Id;
     private Long testReg3Id;
@@ -136,7 +129,6 @@ class DoctorControllerTest {
         patient1.setPhone("13900139001");
         patient1.setIsDeleted((short) 0);
         Patient savedPatient1 = patientRepository.save(patient1);
-        testPatient1Id = savedPatient1.getMainId();
 
         // 创建测试患者2
         Patient patient2 = new Patient();
@@ -148,7 +140,6 @@ class DoctorControllerTest {
         patient2.setPhone("13900139002");
         patient2.setIsDeleted((short) 0);
         Patient savedPatient2 = patientRepository.save(patient2);
-        testPatient2Id = savedPatient2.getMainId();
 
         // 创建测试患者3
         Patient patient3 = new Patient();
@@ -160,7 +151,6 @@ class DoctorControllerTest {
         patient3.setPhone("13900139003");
         patient3.setIsDeleted((short) 0);
         Patient savedPatient3 = patientRepository.save(patient3);
-        testPatient3Id = savedPatient3.getMainId();
 
         // 创建测试挂号记录1 - 待就诊
         Registration registration1 = new Registration();
@@ -209,14 +199,17 @@ class DoctorControllerTest {
     }
 
     @Test
-    @DisplayName("测试查询候诊列表 - 成功返回3条记录")
-    void testGetWaitingList_Success() throws Exception {
+    @DisplayName("测试查询候诊列表 - 个人视图返回3条记录")
+    void testGetWaitingList_PersonalView_Success() throws Exception {
         mockMvc.perform(get("/api/doctor/waiting-list")
+                        .param("doctorId", testDoctorId.toString())
                         .param("deptId", testDeptId.toString())
+                        .param("showAll", "false")  // 个人视图
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value(containsString("个人视图")))
                 .andExpect(jsonPath("$.data").isArray())
                 .andExpect(jsonPath("$.data.length()").value(3))
                 // 验证第一条记录（排队号001）
@@ -239,6 +232,22 @@ class DoctorControllerTest {
     }
 
     @Test
+    @DisplayName("测试查询候诊列表 - 科室视图返回3条记录")
+    void testGetWaitingList_DepartmentView_Success() throws Exception {
+        mockMvc.perform(get("/api/doctor/waiting-list")
+                        .param("doctorId", testDoctorId.toString())
+                        .param("deptId", testDeptId.toString())
+                        .param("showAll", "true")  // 科室视图
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.message").value(containsString("科室视图")))
+                .andExpect(jsonPath("$.data").isArray())
+                .andExpect(jsonPath("$.data.length()").value(3));
+    }
+
+    @Test
     @DisplayName("测试查询候诊列表 - 空列表（已就诊）")
     void testGetWaitingList_EmptyList() throws Exception {
         // 将所有记录标记为已就诊
@@ -255,7 +264,9 @@ class DoctorControllerTest {
         registrationRepository.save(reg3);
 
         mockMvc.perform(get("/api/doctor/waiting-list")
+                        .param("doctorId", testDoctorId.toString())
                         .param("deptId", testDeptId.toString())
+                        .param("showAll", "false")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -295,7 +306,9 @@ class DoctorControllerTest {
         registrationRepository.save(registration4);
 
         mockMvc.perform(get("/api/doctor/waiting-list")
+                        .param("doctorId", testDoctorId.toString())
                         .param("deptId", testDeptId.toString())
+                        .param("showAll", "true")  // 使用科室视图
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -370,7 +383,9 @@ class DoctorControllerTest {
     void testCompleteWorkflow() throws Exception {
         // 1. 查询候诊列表，应有3条记录
         mockMvc.perform(get("/api/doctor/waiting-list")
-                        .param("deptId", testDeptId.toString()))
+                        .param("doctorId", testDoctorId.toString())
+                        .param("deptId", testDeptId.toString())
+                        .param("showAll", "false"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(3));
 
@@ -382,7 +397,9 @@ class DoctorControllerTest {
 
         // 3. 再次查询候诊列表，应只剩2条记录
         mockMvc.perform(get("/api/doctor/waiting-list")
-                        .param("deptId", testDeptId.toString()))
+                        .param("doctorId", testDoctorId.toString())
+                        .param("deptId", testDeptId.toString())
+                        .param("showAll", "false"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(2))
                 .andExpect(jsonPath("$.data[0].queueNo").value("002"))
@@ -396,7 +413,9 @@ class DoctorControllerTest {
 
         // 5. 再次查询候诊列表，应只剩1条记录
         mockMvc.perform(get("/api/doctor/waiting-list")
-                        .param("deptId", testDeptId.toString()))
+                        .param("doctorId", testDoctorId.toString())
+                        .param("deptId", testDeptId.toString())
+                        .param("showAll", "false"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1))
                 .andExpect(jsonPath("$.data[0].queueNo").value("003"))
@@ -410,7 +429,9 @@ class DoctorControllerTest {
 
         // 7. 最终查询候诊列表，应为空
         mockMvc.perform(get("/api/doctor/waiting-list")
-                        .param("deptId", testDeptId.toString()))
+                        .param("doctorId", testDoctorId.toString())
+                        .param("deptId", testDeptId.toString())
+                        .param("showAll", "false"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(0));
     }
@@ -447,7 +468,9 @@ class DoctorControllerTest {
 
         // 查询候诊列表，应该只包含今天的3条记录，不包含昨天的
         mockMvc.perform(get("/api/doctor/waiting-list")
-                        .param("deptId", testDeptId.toString()))
+                        .param("doctorId", testDoctorId.toString())
+                        .param("deptId", testDeptId.toString())
+                        .param("showAll", "true"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200))
@@ -456,27 +479,31 @@ class DoctorControllerTest {
     }
 
     @Test
-    @DisplayName("测试查询候诊列表 - 科室不存在")
-    void testGetWaitingList_DeptNotFound() throws Exception {
+    @DisplayName("测试查询候诊列表 - 科室ID无效（科室视图）")
+    void testGetWaitingList_InvalidDeptIdFromContext() throws Exception {
         mockMvc.perform(get("/api/doctor/waiting-list")
-                        .param("deptId", "99999")
-                        .contentType(MediaType.APPLICATION_JSON))
-                .andDo(print())
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message").value(containsString("科室不存在")));
-    }
-
-    @Test
-    @DisplayName("测试查询候诊列表 - 科室ID无效")
-    void testGetWaitingList_InvalidDeptId() throws Exception {
-        mockMvc.perform(get("/api/doctor/waiting-list")
-                        .param("deptId", "-1")
+                        .param("doctorId", testDoctorId.toString())
+                        .param("deptId", "-1") // 无效的科室ID
+                        .param("showAll", "true") // 科室视图时才验证deptId
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(400))
                 .andExpect(jsonPath("$.message").value(containsString("科室ID必须大于0")));
+    }
+
+    @Test
+    @DisplayName("测试查询候诊列表 - 科室不存在（科室视图）")
+    void testGetWaitingList_DeptNotFoundFromContext() throws Exception {
+        mockMvc.perform(get("/api/doctor/waiting-list")
+                        .param("doctorId", testDoctorId.toString())
+                        .param("deptId", "99999") // 不存在的科室ID
+                        .param("showAll", "true") // 科室视图时才验证deptId是否存在
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value(containsString("科室不存在")));
     }
 
     @Test
@@ -489,7 +516,9 @@ class DoctorControllerTest {
         });
 
         mockMvc.perform(get("/api/doctor/waiting-list")
+                        .param("doctorId", testDoctorId.toString())
                         .param("deptId", testDeptId.toString())
+                        .param("showAll", "false")
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
                 .andExpect(status().isOk())
