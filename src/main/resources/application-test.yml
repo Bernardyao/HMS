@@ -14,8 +14,7 @@ server:
     include-exception: false
 
 spring:
-  # 数据源配置 - 测试环境
-  # 使用独立的测试数据库，避免影响开发数据
+  # 数据源配置 - 测试环境（连接真实测试库）
   datasource:
     url: jdbc:postgresql://localhost:5432/his_project_test
     username: postgres
@@ -34,7 +33,7 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
+      ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:

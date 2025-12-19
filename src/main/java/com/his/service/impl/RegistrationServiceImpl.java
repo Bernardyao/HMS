@@ -235,6 +235,8 @@ public class RegistrationServiceImpl implements RegistrationService {
         vo.setRegNo(registration.getRegNo());
         vo.setPatientId(patient.getMainId());
         vo.setPatientName(patient.getName());
+        vo.setGender(patient.getGender());
+        vo.setAge(patient.getAge());
         vo.setDeptId(department.getMainId());
         vo.setDeptName(department.getName());
         vo.setDoctorId(doctor.getMainId());

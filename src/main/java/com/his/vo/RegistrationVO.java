@@ -36,6 +36,16 @@ public class RegistrationVO implements Serializable {
     private Long patientId;
 
     /**
+     * 患者性别（0=女, 1=男, 2=未知）
+     */
+    private Short gender;
+
+    /**
+     * 患者年龄
+     */
+    private Short age;
+
+    /**
      * 科室 ID
      */
     private Long deptId;

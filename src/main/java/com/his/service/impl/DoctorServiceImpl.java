@@ -1,0 +1,244 @@
+package com.his.service.impl;
+
+import com.his.entity.Department;
+import com.his.entity.Registration;
+import com.his.enums.RegStatusEnum;
+import com.his.repository.DepartmentRepository;
+import com.his.repository.RegistrationRepository;
+import com.his.service.DoctorService;
+import com.his.vo.RegistrationVO;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.stream.Collectors;
+
+/**
+ * 医生工作站服务实现类
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class DoctorServiceImpl implements DoctorService {
+
+    private final RegistrationRepository registrationRepository;
+    private final DepartmentRepository departmentRepository;
+
+    /**
+     * 获取今日候诊列表
+     * 防御性编程: 完整的参数验证和业务状态检查
+     *
+     * @param deptId 科室ID
+     * @return 候诊列表
+     * @throws IllegalArgumentException 当科室ID无效或科室不存在时
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public List<RegistrationVO> getWaitingList(Long deptId) {
+        // 防御性编程1: 参数非空验证
+        if (deptId == null) {
+            log.error("查询候诊列表失败: 科室ID为null");
+            throw new IllegalArgumentException("科室ID不能为空");
+        }
+        
+        // 防御性编程2: 参数有效性验证
+        if (deptId <= 0) {
+            log.error("查询候诊列表失败: 科室ID无效 - {}", deptId);
+            throw new IllegalArgumentException("科室ID必须大于0，当前值: " + deptId);
+        }
+        
+        // 防御性编程3: 验证科室是否存在
+        Department department = departmentRepository.findById(deptId).orElse(null);
+        if (department == null) {
+            log.warn("查询候诊列表失败: 科室不存在，ID: {}", deptId);
+            throw new IllegalArgumentException("科室不存在，ID: " + deptId);
+        }
+        
+        // 防御性编程4: 验证科室是否被删除
+        if (department.getIsDeleted() != null && department.getIsDeleted() == 1) {
+            log.warn("查询候诊列表失败: 科室已被删除，ID: {}, 名称: {}", deptId, department.getName());
+            throw new IllegalArgumentException("科室已停用: " + department.getName());
+        }
+        
+        // 防御性编程5: 验证科室是否启用
+        if (department.getStatus() != null && department.getStatus() == 0) {
+            log.warn("查询候诊列表失败: 科室已停用，ID: {}, 名称: {}", deptId, department.getName());
+            throw new IllegalArgumentException("科室已停用: " + department.getName());
+        }
+
+        log.info("查询科室候诊列表，科室ID: {}, 科室名称: {}, 日期: {}", 
+                deptId, department.getName(), LocalDate.now());
+
+        // 查询今日、指定科室、待就诊状态的挂号记录，按排队号升序
+        List<Registration> registrations = registrationRepository
+                .findByDepartment_MainIdAndVisitDateAndStatusAndIsDeletedOrderByQueueNoAsc(
+                        deptId,
+                        LocalDate.now(),
+                        RegStatusEnum.WAITING.getCode(),
+                        (short) 0
+                );
+
+        log.info("科室[{}]查询到 {} 条候诊记录", department.getName(), registrations.size());
+
+        // 转换为 VO
+        return registrations.stream()
+                .map(this::convertToVO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 更新挂号状态（接诊或完成就诊）
+     * 防御性编程: 完整的参数验证和状态转换检查
+     *
+     * @param regId 挂号记录ID
+     * @param newStatus 新状态
+     * @throws IllegalArgumentException 当参数无效或记录不存在时
+     * @throws IllegalStateException 当状态转换不合法时
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateStatus(Long regId, RegStatusEnum newStatus) {
+        // 防御性编程1: 参数非空验证
+        if (regId == null) {
+            log.error("更新挂号状态失败: 挂号ID为null");
+            throw new IllegalArgumentException("挂号ID不能为空");
+        }
+        
+        if (regId <= 0) {
+            log.error("更新挂号状态失败: 挂号ID无效 - {}", regId);
+            throw new IllegalArgumentException("挂号ID必须大于0，当前值: " + regId);
+        }
+        
+        if (newStatus == null) {
+            log.error("更新挂号状态失败: 新状态为null，挂号ID: {}", regId);
+            throw new IllegalArgumentException("新状态不能为空");
+        }
+        
+        log.info("更新挂号状态，挂号ID: {}, 新状态: {}", regId, newStatus);
+
+        // 防御性编程2: 查询挂号记录
+        Registration registration = registrationRepository.findById(regId)
+                .orElseThrow(() -> {
+                    log.warn("更新挂号状态失败: 挂号记录不存在，ID: {}", regId);
+                    return new IllegalArgumentException("挂号记录不存在，ID: " + regId);
+                });
+        
+        // 防御性编程3: 检查记录是否被删除
+        if (registration.getIsDeleted() != null && registration.getIsDeleted() == 1) {
+            log.warn("更新挂号状态失败: 挂号记录已被删除，ID: {}", regId);
+            throw new IllegalArgumentException("该挂号记录已被删除，无法操作");
+        }
+        
+        // 防御性编程4: 检查就诊日期
+        if (registration.getVisitDate() != null && !registration.getVisitDate().equals(LocalDate.now())) {
+            log.warn("更新挂号状态失败: 只能操作今日的挂号记录，挂号ID: {}, 就诊日期: {}", 
+                    regId, registration.getVisitDate());
+            throw new IllegalStateException(
+                    String.format("只能操作今日的挂号记录，该记录就诊日期为: %s", registration.getVisitDate())
+            );
+        }
+        
+        // 获取当前状态描述
+        String currentStatusDesc = "未知";
+        try {
+            currentStatusDesc = RegStatusEnum.fromCode(registration.getStatus()).getDescription();
+        } catch (Exception e) {
+            log.warn("无法解析当前状态码: {}", registration.getStatus());
+        }
+
+        // 防御性编程5: 状态转换合法性检查
+        if (RegStatusEnum.COMPLETED.equals(newStatus)) {
+            if (!RegStatusEnum.WAITING.getCode().equals(registration.getStatus())) {
+                log.warn("更新挂号状态失败: 非法状态转换，挂号ID: {}, 当前状态: {}, 目标状态: {}", 
+                        regId, currentStatusDesc, newStatus.getDescription());
+                throw new IllegalStateException(
+                        String.format("只有[待就诊]状态的挂号才能接诊，当前状态: [%s]", currentStatusDesc)
+                );
+            }
+        }
+        
+        // 防御性编程6: 不能更新为相同状态
+        if (registration.getStatus() != null && registration.getStatus().equals(newStatus.getCode())) {
+            log.warn("更新挂号状态失败: 状态未变化，挂号ID: {}, 当前状态: {}", regId, currentStatusDesc);
+            throw new IllegalStateException(
+                    String.format("挂号记录已经是[%s]状态，无需重复操作", currentStatusDesc)
+            );
+        }
+
+        // 更新状态
+        registration.setStatus(newStatus.getCode());
+        registrationRepository.save(registration);
+
+        log.info("挂号状态更新成功，挂号ID: {}, 原状态: {}, 新状态: {}", 
+                regId, currentStatusDesc, newStatus.getDescription());
+    }
+
+    /**
+     * 将 Registration 实体转换为 RegistrationVO
+     * 防御性编程: 完整的null检查和异常处理
+     */
+    private RegistrationVO convertToVO(Registration registration) {
+        // 防御性编程: 检查入参
+        if (registration == null) {
+            log.error("convertToVO失败: registration为null");
+            throw new IllegalArgumentException("挂号记录不能为空");
+        }
+        
+        RegistrationVO vo = new RegistrationVO();
+        vo.setId(registration.getMainId());
+        vo.setRegNo(registration.getRegNo());
+        
+        // 防御性编程: 检查患者信息
+        if (registration.getPatient() != null) {
+            vo.setPatientId(registration.getPatient().getMainId());
+            vo.setPatientName(registration.getPatient().getName());
+            vo.setGender(registration.getPatient().getGender());
+            vo.setAge(registration.getPatient().getAge());
+        } else {
+            log.warn("挂号记录缺少患者信息,挂号ID: {}", registration.getMainId());
+        }
+        
+        // 防御性编程: 检查科室信息
+        if (registration.getDepartment() != null) {
+            vo.setDeptId(registration.getDepartment().getMainId());
+            vo.setDeptName(registration.getDepartment().getName());
+        } else {
+            log.warn("挂号记录缺少科室信息,挂号ID: {}", registration.getMainId());
+        }
+        
+        // 防御性编程: 检查医生信息
+        if (registration.getDoctor() != null) {
+            vo.setDoctorId(registration.getDoctor().getMainId());
+            vo.setDoctorName(registration.getDoctor().getName());
+        } else {
+            log.warn("挂号记录缺少医生信息,挂号ID: {}", registration.getMainId());
+        }
+        
+        vo.setStatus(registration.getStatus());
+        
+        // 防御性编程: 安全地获取状态描述
+        try {
+            if (registration.getStatus() != null) {
+                vo.setStatusDesc(RegStatusEnum.fromCode(registration.getStatus()).getDescription());
+            } else {
+                vo.setStatusDesc("未知状态");
+                log.warn("挂号记录状态为空,挂号ID: {}", registration.getMainId());
+            }
+        } catch (Exception e) {
+            vo.setStatusDesc("未知状态");
+            log.error("解析挂号状态失败,挂号ID: {}, 状态码: {}", 
+                    registration.getMainId(), registration.getStatus(), e);
+        }
+        
+        vo.setVisitDate(registration.getVisitDate());
+        vo.setRegistrationFee(registration.getRegistrationFee());
+        vo.setQueueNo(registration.getQueueNo());
+        vo.setAppointmentTime(registration.getAppointmentTime());
+        vo.setCreatedAt(registration.getCreatedAt());
+
+        return vo;
+    }
+}

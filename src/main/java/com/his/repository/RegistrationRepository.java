@@ -98,4 +98,10 @@ public interface RegistrationRepository extends JpaRepository<Registration, Long
             @Param("status") Short status,
             @Param("isDeleted") Short isDeleted
     );
+
+    /**
+     * 查询指定科室、指定日期、指定状态的挂号记录，按排队号升序排列（医生工作站专用）
+     */
+    List<Registration> findByDepartment_MainIdAndVisitDateAndStatusAndIsDeletedOrderByQueueNoAsc(
+            Long deptId, LocalDate visitDate, Short status, Short isDeleted);
 }

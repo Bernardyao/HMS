@@ -112,6 +112,18 @@ class RegistrationControllerTest {
     @Test
     @DisplayName("测试挂号接口 - 老患者")
     void testRegister_ExistingPatient() throws Exception {
+        // 准备第二个医生（用于老患者第二次挂号）
+        Doctor doctor2 = new Doctor();
+        doctor2.setDoctorNo("D002");
+        doctor2.setName("李医生");
+        doctor2.setGender((short) 0);
+        doctor2.setDepartment(departmentRepository.findById(testDeptId).orElseThrow());
+        doctor2.setTitle("副主任医师");
+        doctor2.setStatus((short) 1);
+        doctor2.setIsDeleted((short) 0);
+        Doctor savedDoctor2 = doctorRepository.save(doctor2);
+        Long testDoctorId2 = savedDoctor2.getMainId();
+
         // 第一次挂号（建档）
         RegistrationDTO dto1 = new RegistrationDTO();
         dto1.setPatientName("王五");
@@ -129,7 +141,7 @@ class RegistrationControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(200));
 
-        // 第二次挂号（使用相同身份证号）
+        // 第二次挂号（使用相同身份证号，但挂不同医生）
         RegistrationDTO dto2 = new RegistrationDTO();
         dto2.setPatientName("王五");
         dto2.setIdCard("320106199601013456"); // 相同身份证号
@@ -137,7 +149,7 @@ class RegistrationControllerTest {
         dto2.setAge((short) 27);
         dto2.setPhone("13800138888");
         dto2.setDeptId(testDeptId);
-        dto2.setDoctorId(testDoctorId);
+        dto2.setDoctorId(testDoctorId2); // 不同的医生
         dto2.setRegFee(new BigDecimal("20.00"));
 
         mockMvc.perform(post("/api/registrations")
