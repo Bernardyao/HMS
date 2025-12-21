@@ -3,6 +3,8 @@
 # ============================================================
 
 spring:
+  main:
+    banner-mode: off
   profiles:
     # 激活的环境配置 (dev/test/prod)
     active: dev

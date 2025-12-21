@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true" scanPeriod="60 seconds" debug="false">
+
+    <!-- 引入 Spring Boot 默认的 logback 转换器，用于支持彩色输出 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- 定义日志文件存储路径 -->
+    <property name="LOG_HOME" value="logs"/>
+    <!-- 定义应用名称 -->
+    <springProperty scope="context" name="APP_NAME" source="spring.application.name" defaultValue="his-application"/>
+
+    <!-- 自定义日志输出格式：时间 [线程] [TraceId] 级别 类名 - 消息 -->
+    <!-- %clr(...){color} 是 Spring Boot 提供的彩色渲染支持 -->
+    <property name="CONSOLE_LOG_PATTERN"
+              value="%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr([%thread]){magenta} %clr([%X{traceId}]){yellow} %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n"/>
+    
+    <property name="FILE_LOG_PATTERN"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"/>
+
+    <!-- ==================================================================================== -->
+    <!-- Appender 定义 -->
+    <!-- ==================================================================================== -->
+
+    <!-- 1. 控制台输出 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 2. INFO 级别日志文件 (包含 INFO, WARN, ERROR) -->
+    <appender name="FILE_INFO" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!-- 正在记录的日志文件名 -->
+        <file>${LOG_HOME}/info.log</file>
+        
+        <!-- 滚动策略：按天滚动，且限制单文件大小 -->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!-- 归档文件名格式 -->
+            <fileNamePattern>${LOG_HOME}/archived/info-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <!-- 单个文件最大 100MB -->
+            <maxFileSize>100MB</maxFileSize>
+            <!-- 保留最近 30 天的日志 -->
+            <maxHistory>30</maxHistory>
+            <!-- 总大小限制 3GB -->
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        
+        <!-- 过滤策略：记录 INFO 及以上级别 -->
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>INFO</level>
+        </filter>
+    </appender>
+
+    <!-- 3. ERROR 级别日志文件 (仅包含 ERROR) -->
+    <appender name="FILE_ERROR" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/error.log</file>
+        
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/archived/error-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+
+        <encoder>
+            <pattern>${FILE_LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+
+        <!-- 过滤策略：只记录 ERROR 级别 -->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!-- 4. 异步输出 (优化性能，防止日志阻塞主线程) -->
+    <appender name="ASYNC_INFO" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- 不丢失日志. 默认如果队列剩余容量 < 20% 会丢弃 TRACE, DEBUG, INFO -->
+        <discardingThreshold>0</discardingThreshold>
+        <!-- 更改默认的队列深度, 该值会影响性能. 默认 256 -->
+        <queueSize>512</queueSize>
+        <!-- 添加 TraceId 等 MDC 信息到异步线程 -->
+        <includeCallerData>true</includeCallerData>
+        <appender-ref ref="FILE_INFO"/>
+    </appender>
+
+    <appender name="ASYNC_ERROR" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>0</discardingThreshold>
+        <queueSize>512</queueSize>
+        <includeCallerData>true</includeCallerData>
+        <appender-ref ref="FILE_ERROR"/>
+    </appender>
+
+    <!-- ==================================================================================== -->
+    <!-- Profile 配置 -->
+    <!-- ==================================================================================== -->
+
+    <!-- 开发环境：控制台打印详情，生成文件 -->
+    <springProfile name="dev">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="ASYNC_INFO"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+        <!-- 业务代码开启 DEBUG -->
+        <logger name="com.his" level="DEBUG"/>
+        
+        <!-- 屏蔽不必要的框架日志 -->
+        <logger name="org.springframework" level="INFO"/>
+        <logger name="org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration" level="ERROR"/>
+        <logger name="org.hibernate" level="INFO"/>
+        <logger name="org.hibernate.orm.deprecation" level="ERROR"/>
+        <logger name="org.apache.catalina" level="WARN"/>
+        <logger name="org.apache.coyote" level="WARN"/>
+        <logger name="org.apache.tomcat" level="WARN"/>
+        
+        <!-- 打印 SQL (Hibernate) - 仅在需要时开启 -->
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
+        <!-- <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/> -->
+    </springProfile>
+
+    <!-- 测试环境：主要是控制台 -->
+    <springProfile name="test">
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+        <logger name="com.his" level="DEBUG"/>
+    </springProfile>
+
+    <!-- 生产环境：只写文件，INFO 级别，异步 -->
+    <springProfile name="prod">
+        <root level="INFO">
+            <appender-ref ref="ASYNC_INFO"/>
+            <appender-ref ref="ASYNC_ERROR"/>
+        </root>
+        <!-- 生产环境业务代码建议 INFO 或 WARN，视情况调整 -->
+        <logger name="com.his" level="INFO"/>
+    </springProfile>
+
+</configuration>

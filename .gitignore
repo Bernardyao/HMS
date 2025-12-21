@@ -42,5 +42,8 @@ docs/*
 !docs/todo-backend.md
 !docs/dev-process-3person.md
 !docs/todo-testing.md
+!docs/DEPLOY_UBUNTU.md
 ！docs/API/*
 .copilot/
+GEMINI.md
+logs/

@@ -17,7 +17,7 @@ spring:
   # 数据源配置 - 开发环境
   # 【安全提示】建议使用环境变量配置数据库密码
   datasource:
-    url: jdbc:postgresql://localhost:5432/his_project
+    url: jdbc:postgresql://172.20.192.1:5432/his_project
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:123456}
     driver-class-name: org.postgresql.Driver
@@ -32,7 +32,6 @@ spring:
 
   # JPA/Hibernate 配置 - 开发环境
   jpa:
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -91,17 +90,3 @@ management:
   endpoint:
     health:
       show-details: always
-
-# ============================================================
-# 日志配置 - 开发环境
-# ============================================================
-logging:
-  level:
-    root: INFO
-    com.his: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.springframework.web: DEBUG
-    org.springframework.jdbc.core: DEBUG
-  pattern:
-    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'

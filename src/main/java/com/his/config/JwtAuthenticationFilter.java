@@ -31,10 +31,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response, 
                                     FilterChain filterChain) throws ServletException, IOException {
         try {
+            String requestURI = request.getRequestURI();
+            // 排除静态资源和Swagger相关路径的Debug日志，减少噪音
+            boolean isStaticResource = requestURI.startsWith("/webjars/") || 
+                                     requestURI.startsWith("/doc.html") || 
+                                     requestURI.startsWith("/v3/api-docs") ||
+                                     requestURI.startsWith("/favicon.ico") ||
+                                     requestURI.startsWith("/swagger-resources");
+
             String authHeader = request.getHeader("Authorization");
-            log.debug("请求路径: {}, Authorization Header: {}", 
-                request.getRequestURI(), 
-                authHeader != null ? authHeader.substring(0, Math.min(30, authHeader.length())) + "..." : "null");
+            if (!isStaticResource) {
+                log.debug("请求路径: {}, Authorization Header: {}", 
+                    requestURI, 
+                    authHeader != null ? authHeader.substring(0, Math.min(30, authHeader.length())) + "..." : "null");
+            }
             
             // 从请求头中获取 Token
             String token = extractToken(request);
