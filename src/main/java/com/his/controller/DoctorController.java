@@ -22,9 +22,12 @@ import java.util.List;
  * 
  * <p><b>安全设计：防止水平越权（IDOR）攻击</b>
  * 
- * <p>本控制器的所有接口都使用 {@link SecurityUtils} 从 JWT Token 中获取当前医生的身份信息，
+ * <p>本控制器的所有接口默认使用 {@link SecurityUtils} 从 JWT Token 中获取当前医生的身份信息，
  * 而<b>不信任</b>前端传递的任何用户标识参数（如 doctorId）。这样可以防止攻击者通过修改请求参数
  * 来访问其他医生的数据。
+ * 
+ * <p><b>管理员特权：</b>
+ * <p>如果当前用户是管理员（ADMIN），则允许通过参数指定要查看的医生数据，并拥有操作所有数据的权限。
  * 
  * @author HIS 开发团队
  * @see SecurityUtils
@@ -46,8 +49,11 @@ public class DoctorController {
      * 
      * <p><b>【安全特性】</b>强制从 JWT Token 获取医生ID，防止水平越权（IDOR）攻击。
      * 医生只能查看自己或本科室的候诊患者。
+     * 
+     * <p><b>【管理员特权】</b>管理员可以通过 adminDoctorId 参数指定要查看的医生。
      *
      * @param showAll 是否显示科室所有患者（false=个人视图，true=科室视图）
+     * @param adminDoctorId 管理员指定查看的医生ID（仅管理员有效）
      * @return 候诊列表
      */
     @Operation(
@@ -55,6 +61,7 @@ public class DoctorController {
         description = "<b>【安全特性】强制从JWT Token获取医生ID，防止水平越权（IDOR）攻击</b><br/>" +
                       "默认显示分配给当前医生的候诊患者（个人视图），设置showAll=true可查看整个科室的候诊患者（科室视图）。<br/>" +
                       "按排队号升序排列。<br/><br/>" +
+                      "<b>【管理员特权】</b>管理员可通过 adminDoctorId 参数查看任意医生的候诊列表。<br/><br/>" +
                       "<b>响应示例：</b><br/>" +
                       "<pre>{\n" +
                       "  \"code\": 200,\n" +
@@ -68,27 +75,43 @@ public class DoctorController {
                       "      \"status\": 0,\n" +
                       "      \"statusDesc\": \"待就诊\"\n" +
                       "    }\n" +
-                      "  ],\n" +
-                      "  \"timestamp\": 1701417600000\n" +
+                      "  ]\n" +
                       "}</pre>"
     )
     @GetMapping("/waiting-list")
     public Result<List<RegistrationVO>> getWaitingList(
             @Parameter(description = "是否显示科室所有患者（false=个人视图，true=科室视图）", required = false, example = "false")
-            @RequestParam(defaultValue = "false") boolean showAll) {
+            @RequestParam(defaultValue = "false") boolean showAll,
+            @Parameter(description = "管理员指定查看的医生ID（仅管理员有效）", required = false)
+            @RequestParam(required = false) Long adminDoctorId) {
         try {
-            // ✅ 核心安全逻辑：从 JWT Token 获取医生ID（而非信任前端传参）
-            // 这样可以防止攻击者通过修改请求参数查看其他医生的候诊列表（IDOR攻击）
-            Long doctorId = SecurityUtils.getCurrentDoctorId();
-            
-            // 从数据库获取医生信息以获得科室ID
-            Doctor doctor = doctorRepository.findById(doctorId)
-                    .orElseThrow(() -> new IllegalArgumentException("医生信息不存在，ID: " + doctorId));
-            
-            Long deptId = doctor.getDepartment().getMainId();
-            
-            log.info("【安全】查询候诊列表 - 医生ID: {} (从Token获取), 科室ID: {}, 科室视图: {}", 
-                    doctorId, deptId, showAll);
+            Long doctorId;
+            Long deptId;
+
+            if (SecurityUtils.isAdmin()) {
+                // 管理员模式
+                if (adminDoctorId == null) {
+                    return Result.badRequest("管理员模式下，请指定要查看的医生ID (参数: adminDoctorId)");
+                }
+                doctorId = adminDoctorId;
+                
+                // 获取指定医生的科室信息
+                Doctor doctor = doctorRepository.findById(doctorId)
+                        .orElseThrow(() -> new IllegalArgumentException("指定的医生不存在，ID: " + doctorId));
+                deptId = doctor.getDepartment().getMainId();
+                
+                log.info("【管理员】查看医生[{}]的候诊列表，科室ID: {}", doctorId, deptId);
+            } else {
+                // 医生模式 - 安全获取ID
+                doctorId = SecurityUtils.getCurrentDoctorId();
+                
+                Doctor doctor = doctorRepository.findById(doctorId)
+                        .orElseThrow(() -> new IllegalArgumentException("医生信息不存在，ID: " + doctorId));
+                deptId = doctor.getDepartment().getMainId();
+                
+                log.info("【安全】查询候诊列表 - 医生ID: {} (从Token获取), 科室ID: {}, 科室视图: {}", 
+                        doctorId, deptId, showAll);
+            }
             
             // 调用服务层查询候诊列表
             List<RegistrationVO> waitingList = doctorService.getWaitingList(doctorId, deptId, showAll);
@@ -108,7 +131,7 @@ public class DoctorController {
                     waitingList
             );
         } catch (IllegalStateException e) {
-            // SecurityUtils 抛出的异常：用户未登录或不是医生角色
+            // SecurityUtils 抛出的异常
             log.error("【安全】获取当前医生ID失败: {}", e.getMessage());
             return Result.unauthorized("认证失败，请重新登录");
         } catch (IllegalArgumentException e) {
@@ -124,6 +147,7 @@ public class DoctorController {
      * 更新挂号状态（接诊或完成就诊）
      * 
      * <p><b>【安全特性】</b>验证当前医生是否为该挂号的责任医生，防止越权操作。
+     * <p><b>【管理员特权】</b>管理员可以直接更新状态，不受责任医生限制。
      *
      * @param id 挂号记录ID
      * @param status 新状态码（1=已就诊）
@@ -133,7 +157,8 @@ public class DoctorController {
         summary = "更新就诊状态", 
         description = "<b>【安全特性】强制从JWT Token获取医生ID并验证权限，防止水平越权（IDOR）攻击</b><br/>" +
                       "医生接诊或完成就诊，将挂号状态从待就诊更新为已就诊。<br/>" +
-                      "系统会验证当前医生是否是该挂号记录的责任医生，只有责任医生才能更新状态。<br/><br/>" +
+                      "系统会验证当前医生是否是该挂号记录的责任医生，只有责任医生才能更新状态。<br/>" +
+                      "<b>【管理员特权】</b>管理员可以直接更新任意挂号记录的状态。<br/><br/>" +
                       "<b>状态码说明：</b><br/>" +
                       "0 = 待就诊<br/>" +
                       "1 = 已就诊<br/>" +
@@ -143,15 +168,7 @@ public class DoctorController {
                       "<pre>{\n" +
                       "  \"code\": 200,\n" +
                       "  \"message\": \"状态更新成功: 已就诊\",\n" +
-                      "  \"data\": null,\n" +
-                      "  \"timestamp\": 1701417600000\n" +
-                      "}</pre><br/>" +
-                      "<b>权限不足响应示例：</b><br/>" +
-                      "<pre>{\n" +
-                      "  \"code\": 400,\n" +
-                      "  \"message\": \"无权限操作: 该挂号属于其他医生（ID: 100），您只能操作自己的挂号\",\n" +
-                      "  \"data\": null,\n" +
-                      "  \"timestamp\": 1701417600000\n" +
+                      "  \"data\": null\n" +
                       "}</pre>"
     )
     @PutMapping("/registrations/{id}/status")
@@ -180,16 +197,18 @@ public class DoctorController {
                 newStatus = RegStatusEnum.fromCode(status);
             } catch (IllegalArgumentException e) {
                 log.warn("更新就诊状态失败: 无效的状态码 - {}", status);
-                return Result.badRequest("无效的状态码: " + status + "，有效值: 0=待就诊, 1=已就诊, 2=已取消, 3=已退号");
+                return Result.badRequest("无效的状态码: " + status + ", 有效值: 0=待就诊, 1=已就诊, 2=已取消, 3=已退号");
             }
             
-            // ✅ 核心安全逻辑：验证医生是否有权更新该挂号
-            // 从 JWT Token 获取当前医生ID
-            Long currentDoctorId = SecurityUtils.getCurrentDoctorId();
-            
-            // 从数据库获取该挂号记录，检查医生ID是否匹配
-            // 这个验证由服务层完成，确保医生只能更新自己患者的挂号
-            doctorService.validateAndUpdateStatus(id, currentDoctorId, newStatus);
+            if (SecurityUtils.isAdmin()) {
+                // 管理员模式：拥有最高权限，跳过所有权检查，直接更新状态
+                log.info("【管理员】执行强制接诊/状态更新操作: 挂号ID={}, 状态={}", id, status);
+                doctorService.updateStatus(id, newStatus);
+            } else {
+                // 医生模式：验证是否有权更新该挂号（IDOR防御）
+                Long currentDoctorId = SecurityUtils.getCurrentDoctorId();
+                doctorService.validateAndUpdateStatus(id, currentDoctorId, newStatus);
+            }
             
             return Result.success(String.format("状态更新成功: %s", newStatus.getDescription()), null);
         } catch (IllegalStateException e) {

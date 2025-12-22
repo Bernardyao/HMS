@@ -47,9 +47,15 @@ public class SysUser {
     private String role;
 
     /**
-     * 关联ID（医生ID或其他业务ID）
+     * 所属科室ID
      */
     @Column(name = "department_main_id")
+    private Long departmentId;
+
+    /**
+     * 关联业务实体ID（医生ID、护士ID等）
+     */
+    @Column(name = "related_id")
     private Long relatedId;
 
     /**

@@ -88,11 +88,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /**
      * 从请求头中提取 Token
+     * 支持标准 Bearer Token 和直接传递 Token 两种格式
      */
     private String extractToken(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7);
+        if (StringUtils.hasText(bearerToken)) {
+            if (bearerToken.startsWith("Bearer ")) {
+                return bearerToken.substring(7);
+            }
+            // 兼容性处理：如果前端未发送 "Bearer " 前缀，直接使用 Header 值
+            // 这种情况下日志可能会提示格式警告，但允许通过
+            return bearerToken;
         }
         return null;
     }

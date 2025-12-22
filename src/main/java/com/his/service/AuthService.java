@@ -3,10 +3,12 @@ package com.his.service;
 import com.his.common.JwtUtils;
 import com.his.dto.LoginRequest;
 import com.his.entity.SysUser;
+import com.his.enums.UserRole;
 import com.his.repository.SysUserRepository;
 import com.his.vo.LoginVO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -31,8 +33,8 @@ import org.springframework.stereotype.Service;
  * 2. 后端验证用户名密码（BCrypt 加密比对）
  * 
  * 3. 从数据库查询用户的 relatedId（关键步骤）
- *    - 对于医生：relatedId = his_doctor.main_id
- *    - 对于护士：relatedId = 护士ID
+ *    - 对于医生：relatedId = his_doctor.main_id (via related_id column)
+ *    - 对于护士：relatedId = 护士ID (via related_id column)
  *    - 对于管理员：relatedId = null
  * 
  * 4. 生成 JWT Token，将 userId、username、role、relatedId 写入 Claims
@@ -47,7 +49,7 @@ import org.springframework.stereotype.Service;
  *        "role": "DOCTOR",
  *        "realName": "张医生",
  *        "userId": 1,
- *        "relatedId": 10    ← 医生ID（his_doctor.main_id）
+ *        "relatedId": 10    ← 医生ID
  *      }
  *    }
  * 
@@ -113,13 +115,14 @@ public class AuthService {
      *   <li>根据用户名查询用户记录（his_sysuser表）</li>
      *   <li>检查账号状态（是否被停用）</li>
      *   <li>验证密码（BCrypt 加密比对）</li>
-     *   <li><b>【关键步骤】</b>生成 JWT Token，将 relatedId（医生ID）写入 Token Claims</li>
+     *   <li><b>【关键步骤】</b>验证数据完整性，确保医生/护士等角色已关联业务ID</li>
+     *   <li>生成 JWT Token，将 relatedId（医生ID）写入 Token Claims</li>
      *   <li>返回 Token 和用户基本信息</li>
      * </ol>
      * 
      * <p><b>relatedId 的安全意义：</b>
      * <ul>
-     *   <li>relatedId 来源于数据库（his_sysuser.department_main_id），对于医生角色即 his_doctor.main_id</li>
+     *   <li>relatedId 来源于数据库（his_sysuser.related_id），对于医生角色即 his_doctor.main_id</li>
      *   <li>这个值由服务端控制，前端无法篡改</li>
      *   <li>后续业务接口通过 {@link com.his.common.SecurityUtils#getCurrentDoctorId()} 获取此值</li>
      *   <li>即使攻击者修改请求参数，也无法伪造 Token 中的 relatedId</li>
@@ -132,7 +135,7 @@ public class AuthService {
      *   "role": "DOCTOR",
      *   "realName": "张医生",
      *   "userId": 1,
-     *   "relatedId": 10    ← 医生ID，从 his_sysuser.department_main_id 查询得到
+     *   "relatedId": 10    ← 医生ID
      * }
      * </pre>
      * 
@@ -141,11 +144,13 @@ public class AuthService {
      *   <li>用户不存在 → RuntimeException("用户名或密码错误")</li>
      *   <li>账号被停用 → RuntimeException("账号已被停用，请联系管理员")</li>
      *   <li>密码错误 → RuntimeException("用户名或密码错误")</li>
+     *   <li>数据完整性违规 → DataIntegrityViolationException</li>
      * </ul>
      *
      * @param request 登录请求（包含 username 和 password）
      * @return 登录响应（包含 JWT Token、用户角色、姓名、ID、relatedId）
      * @throws RuntimeException 如果登录失败（用户名密码错误、账号被停用等）
+     * @throws DataIntegrityViolationException 如果用户角色需要关联ID但未配置
      * 
      * @see JwtUtils#generateToken(Long, String, String, Long) 生成包含 relatedId 的 Token
      * @see com.his.common.SecurityUtils#getCurrentDoctorId() 业务代码中获取医生ID的方式
@@ -176,17 +181,30 @@ public class AuthService {
         }
 
         // 4. 生成 JWT Token（关键：将 relatedId 写入 Token）
+        Long relatedId = user.getRelatedId();
+
+        // 严格的数据完整性检查
+        // 医生、护士等业务角色必须有关联的业务实体ID
+        if (relatedId == null) {
+            String role = user.getRole();
+            if (UserRole.DOCTOR.getCode().equals(role)) {
+                log.error("数据完整性违规：医生账户未关联医生档案，用户名: {}", username);
+                throw new DataIntegrityViolationException("账户未关联到医生个人资料，请联系管理员修复数据");
+            }
+            // 未来可以扩展对护士、药师等角色的检查
+        }
+
         // relatedId 对于医生角色即医生ID（his_doctor.main_id）
         // 后续业务接口通过 SecurityUtils.getCurrentDoctorId() 获取此值，防止水平越权
         String token = jwtUtils.generateToken(
                 user.getId(),           // 系统用户ID
                 user.getUsername(),     // 用户名
                 user.getRole(),         // 角色（DOCTOR/ADMIN/NURSE等）
-                user.getRelatedId()     // 关联ID（医生ID/护士ID等），来源于数据库，无法伪造
+                relatedId               // 关联ID（医生ID/护士ID等），来源于数据库，无法伪造
         );
 
         log.info("用户登录成功，用户名: {}, 角色: {}, relatedId: {}", 
-                username, user.getRole(), user.getRelatedId());
+                username, user.getRole(), relatedId);
 
         // 5. 构建返回结果（前端将 Token 存储并在后续请求中携带）
         return LoginVO.builder()
@@ -194,7 +212,7 @@ public class AuthService {
                 .role(user.getRole())
                 .realName(user.getRealName())
                 .userId(user.getId())
-                .relatedId(user.getRelatedId())  // 也返回给前端展示，但后端不信任此值
+                .relatedId(relatedId)  // 也返回给前端展示，但后端不信任此值
                 .build();
     }
 

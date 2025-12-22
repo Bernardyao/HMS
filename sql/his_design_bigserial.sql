@@ -73,6 +73,7 @@ CREATE TABLE his_sysuser (
     -- 角色和权限相关
     role_code           VARCHAR(50)     NOT NULL DEFAULT 'DOCTOR',
     department_main_id  BIGINT          DEFAULT NULL,
+    related_id          BIGINT          DEFAULT NULL,
     
     -- 可空/变长字段在后
     avatar              VARCHAR(500)    DEFAULT NULL,
@@ -95,6 +96,7 @@ COMMENT ON COLUMN his_sysuser.updated_at IS '更新时间';
 COMMENT ON COLUMN his_sysuser.last_login_time IS '最后登录时间';
 COMMENT ON COLUMN his_sysuser.role_code IS '角色代码（ADMIN=管理员, DOCTOR=医生, NURSE=护士, PHARMACIST=药师, CASHIER=收费员）';
 COMMENT ON COLUMN his_sysuser.department_main_id IS '所属科室ID（医生/护士必填）';
+COMMENT ON COLUMN his_sysuser.related_id IS '关联业务实体ID（如医生ID、护士ID）';
 COMMENT ON COLUMN his_sysuser.avatar IS '头像URL';
 COMMENT ON COLUMN his_sysuser.remark IS '备注信息';
 COMMENT ON COLUMN his_sysuser.created_by IS '创建人ID';
@@ -103,6 +105,7 @@ COMMENT ON COLUMN his_sysuser.updated_by IS '更新人ID';
 -- 创建索引
 CREATE UNIQUE INDEX idx_his_sysuser_username ON his_sysuser (username) WHERE is_deleted = 0;
 CREATE INDEX idx_his_sysuser_department ON his_sysuser (department_main_id) WHERE is_deleted = 0;
+CREATE INDEX idx_his_sysuser_related ON his_sysuser (related_id) WHERE is_deleted = 0;
 CREATE INDEX idx_his_sysuser_role ON his_sysuser (role_code) WHERE is_deleted = 0;
 CREATE INDEX idx_his_sysuser_status ON his_sysuser (status) WHERE is_deleted = 0;
 
@@ -760,18 +763,6 @@ CREATE TRIGGER t_his_charge_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION p_set_updated_at();
 
--- ============================================
--- 14. 初始化数据
--- ============================================
-
--- 插入默认管理员账户
--- 密码: admin123 (实际使用时应使用加密后的密码，如 BCrypt)
-INSERT INTO his_sysuser (username, password, name, phone, email, role_code, status, is_deleted, remark)
-VALUES 
-    ('admin', '$2a$10$EH/qE.0QE0QE0QE0QE0QEuGKF9kK0QE0QE0QE0QE0QE0QE0QE0QE', '系统管理员', '13800138000', 'admin@his.com', 'ADMIN', 1, 0, '系统默认管理员账户'),
-    ('doctor001', '$2a$10$EH/qE.0QE0QE0QE0QE0QEuGKF9kK0QE0QE0QE0QE0QE0QE0QE0QE', '张医生', '13800138001', 'doctor001@his.com', 'DOCTOR', 1, 0, '测试医生账户');
-
-COMMENT ON TABLE his_sysuser IS '系统用户表 - 默认密码为 admin123，建议首次登录后修改';
 
 -- ============================================
 -- 恢复外键检查
