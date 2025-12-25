@@ -37,10 +37,7 @@ bin/
 # Docs: ignore all, but allow specific files and API folder
 docs/*
 !docs/
-!docs/todo-frontend.md
-!docs/todo-backend.md
-!docs/dev-process-3person.md
-!docs/todo-testing.md
+!/docs/开发路线图.md
 !docs/DEPLOY_UBUNTU.md
 !docs/API/
 !docs/API/**

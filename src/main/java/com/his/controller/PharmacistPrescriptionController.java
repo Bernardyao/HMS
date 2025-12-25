@@ -1,7 +1,6 @@
 package com.his.controller;
 
 import com.his.common.Result;
-import com.his.dto.PrescriptionDTO;
 import com.his.entity.Prescription;
 import com.his.service.PrescriptionService;
 import com.his.vo.PrescriptionVO;
@@ -13,8 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * 药师工作站-处方管理控制器
