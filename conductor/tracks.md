@@ -4,5 +4,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-## [ ] Track: Develop Pharmacist Workstation (Backend)
+## [~] Track: Develop Pharmacist Workstation (Backend)
 *Link: [./conductor/tracks/pharmacist_workstation_20251226/](./conductor/tracks/pharmacist_workstation_20251226/)*

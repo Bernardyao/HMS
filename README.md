@@ -2,23 +2,26 @@
 
 [![Java](https://img.shields.io/badge/Java-17%2B-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](https://www.oracle.com/java/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.1-6DB33F?style=flat-square&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
-[![React](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
 ## 📖 项目简介 (Introduction)
 
-**HIS (Hospital Information System)** 是一套企业级标准的现代化全栈医疗信息管理解决方案。该系统基于 **Spring Boot 3** 后端与 **React 18** 前端构建，旨在数字化并优化复杂的医院业务流程——从患者挂号、门诊就诊、电子病历书写，到处方开具、收费结算及药房发药，实现了医疗服务的全流程闭环管理。
+**HIS (Hospital Information System)** 是一套企业级标准的现代化医疗信息管理后端服务。该系统基于 **Spring Boot 3** 构建，提供完整的 RESTful API，旨在数字化并优化复杂的医院业务流程——从患者挂号、门诊就诊、电子病历书写，到处方开具、收费结算及药房发药，实现了医疗服务的全流程闭环管理。
 
-本项目严格遵循 **基于角色的访问控制 (RBAC)** 模型，为医生、护士、药师、收费员和系统管理员提供了安全、独立且专属的操作界面。
+本项目严格遵循 **基于角色的访问控制 (RBAC)** 模型，为医生、护士、药师、收费员和系统管理员提供了安全、独立的API接口服务。
+
+> **注意：** 本项目为HIS系统的后端API服务，采用前后端分离架构。前端客户端可独立开发（如React/Vue等），通过本项目的RESTful API进行数据交互。
 
 ---
 
 ## 🏗️ 系统架构 (System Architecture)
 
-![System Architecture](doc/img/architecture.png)
-
-> 系统采用前后端分离架构。后端提供基于 JWT 安全认证的 RESTful API，前端提供现代化的单页应用 (SPA) 体验。
+系统采用前后端分离架构：
+- **后端服务**：基于 Spring Boot 3，提供 RESTful API
+- **安全认证**：基于 JWT 的无状态认证机制
+- **数据存储**：PostgreSQL 关系型数据库
+- **前端客户端**：独立开发（可使用 React/Vue 等框架），通过 API 与后端交互
 
 ---
 
@@ -51,37 +54,18 @@
 
 ## 🛠️ 技术栈 (Tech Stack)
 
-### 后端 (Backend)
 | 组件 | 技术 | 说明 |
 | :--- | :--- | :--- |
 | **开发语言** | Java 17+ | 使用 Record, Sealed Classes 等现代 Java 特性 |
-| **核心框架** | Spring Boot 3.x | 应用程序核心框架 |
-| **安全框架** | Spring Security 6 | 认证与授权 (RBAC) |
+| **核心框架** | Spring Boot 3.2.1 | 应用程序核心框架 |
+| **安全框架** | Spring Security 6 | 认证与授权 (RBAC) + JWT |
 | **持久层** | Spring Data JPA | 数据库抽象与 Repository 模式 |
-| **数据库** | PostgreSQL | 关系型数据库存储 |
+| **数据库** | PostgreSQL 14+ | 关系型数据库存储 |
 | **API 文档** | Knife4j (Swagger 3) | 接口文档与在线调试 |
-| **构建工具** | Gradle | 依赖管理与构建 |
+| **构建工具** | Gradle 8.2 | 依赖管理与构建 |
+| **工具库** | Lombok, Jakarta Bean Validation | 简化开发 |
 
-### 前端 (Frontend)
-| 组件 | 技术 | 说明 |
-| :--- | :--- | :--- |
-| **框架** | React 18 | 函数式组件与 Hooks |
-| **构建工具** | Vite | 下一代前端构建工具，极速冷启动 |
-| **语言** | TypeScript | 类型安全的开发体验 |
-| **UI 组件库** | Ant Design | 企业级 UI 设计体系 |
-| **HTTP 客户端** | Axios | 基于 Promise 的网络请求库 |
-
-### 运维与工具 (DevOps & Tools)
-*   **内网穿透**：`cpolar` (用于远程演示/测试)
-*   **包管理器**：`npm` / `yarn`
-
----
-
-## 📸 界面截图 (UI Snapshots)
-
-| 挂号页面 | 医生工作站 |
-| :---: | :---: |
-| ![Registration Page](doc/img/registration_mockup.png)<br>_护士挂号看板_ | ![Doctor View](doc/img/doctor_mockup.png)<br>_电子病历与处方界面_ |
+更多技术栈详情请参阅 [conductor/tech-stack.md](conductor/tech-stack.md)
 
 ---
 
@@ -91,7 +75,6 @@
 
 ### 前置要求
 *   **JDK 17** 或更高版本
-*   **Node.js 18+** (推荐 LTS 版本)
 *   **PostgreSQL 14+**
 
 ### 1. 数据库初始化
@@ -104,7 +87,7 @@ psql -U postgres -d his_project -f sql/test_data_sysuser.sql
 psql -U postgres -d his_project -f sql/his_design_bigserial.sql
 ```
 
-### 2. 后端启动
+### 2. 启动服务
 进入项目根目录并运行：
 
 ```bash
@@ -114,19 +97,8 @@ psql -U postgres -d his_project -f sql/his_design_bigserial.sql
 # 启动 Spring Boot 应用
 ./gradlew bootRun
 ```
-*后端服务默认运行在 `8080` 端口。*
 
-### 3. 前端启动
-进入前端项目目录（假设为 `his-frontend`）：
-
-```bash
-# 安装依赖
-npm install
-
-# 启动开发服务器
-npm run dev
-```
-*前端页面默认运行在 `5173` 端口 (Vite 默认)。*
+服务默认运行在 `8080` 端口。
 
 ---
 

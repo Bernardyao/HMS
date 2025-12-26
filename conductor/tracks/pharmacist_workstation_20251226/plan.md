@@ -12,7 +12,7 @@
 - [x] Task: Implement `updateStock(Long medicineId, Integer quantity, String reason)` in `MedicineService`. 0bed442
     - Logic: Manually adjust stock and log the change (if audit logging is implemented).
 - [x] Task: Unit Tests for Medicine Return and Stock Update. 4aad0da, 0bed442
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Medicine Return & Inventory'
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Medicine Return & Inventory' [checkpoint: 7c6aa3c]
 
 ## Phase 3: Statistics & Reporting
 - [ ] Task: Implement `getTodayStatistics` for Pharmacists.
