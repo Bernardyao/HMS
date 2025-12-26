@@ -65,4 +65,16 @@ public interface PrescriptionService {
      * @param dispenseBy 发药人ID
      */
     void dispense(Long id, Long dispenseBy);
+
+    /**
+     * 退药
+     * 1. 检查状态是否为已发药(status=3)
+     * 2. 更新状态为已退药(status=4)
+     * 3. 记录退药原因和时间
+     * 4. 恢复药品库存
+     *
+     * @param id 处方ID
+     * @param reason 退药原因
+     */
+    void returnMedicine(Long id, String reason);
 }

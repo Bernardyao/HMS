@@ -78,7 +78,7 @@ public class Prescription {
     private Integer itemCount = 0;
 
     /**
-     * 状态（0=草稿, 1=已开方, 2=已审核, 3=已发药）
+     * 状态（0=草稿, 1=已开方, 2=已审核, 3=已发药, 4=已退药）
      */
     @Column(name = "status", nullable = false)
     private Short status = 0;
@@ -139,6 +139,18 @@ public class Prescription {
      */
     @Column(name = "dispense_by")
     private Long dispenseBy;
+
+    /**
+     * 退药时间
+     */
+    @Column(name = "return_time")
+    private LocalDateTime returnTime;
+
+    /**
+     * 退药原因
+     */
+    @Column(name = "return_reason", length = 500)
+    private String returnReason;
 
     /**
      * 创建人ID

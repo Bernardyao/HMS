@@ -129,4 +129,57 @@ class PrescriptionServiceImplTest {
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("审核");
     }
+
+    @Test
+    void returnMedicine_whenStatusDispensed_updatesStatusAndRestoresStock() {
+        Long prescriptionId = 1L;
+        String reason = "Patient request";
+
+        Prescription prescription = new Prescription();
+        prescription.setMainId(prescriptionId);
+        prescription.setStatus((short) 3); // Dispensed
+
+        Medicine medicine = new Medicine();
+        medicine.setMainId(10L);
+        medicine.setStockQuantity(95);
+
+        PrescriptionDetail detail = new PrescriptionDetail();
+        detail.setMedicine(medicine);
+        detail.setQuantity(5);
+        
+        prescription.setDetails(Collections.singletonList(detail));
+
+        when(prescriptionRepository.findById(prescriptionId)).thenReturn(Optional.of(prescription));
+        when(medicineRepository.findById(10L)).thenReturn(Optional.of(medicine));
+        when(prescriptionRepository.save(any(Prescription.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        prescriptionService.returnMedicine(prescriptionId, reason);
+
+        assertThat(prescription.getStatus()).isEqualTo((short) 4); // Returned
+        assertThat(prescription.getReturnReason()).isEqualTo(reason);
+        assertThat(prescription.getReturnTime()).isNotNull();
+        assertThat(medicine.getStockQuantity()).isEqualTo(100); // 95 + 5
+
+        verify(medicineRepository).save(medicine);
+        verify(prescriptionRepository).save(prescription);
+    }
+
+    @Test
+    void returnMedicine_whenStatusNotDispensed_throwsException() {
+        Long prescriptionId = 1L;
+        String reason = "Patient request";
+
+        Prescription prescription = new Prescription();
+        prescription.setMainId(prescriptionId);
+        prescription.setStatus((short) 2); // Approved but not dispensed
+
+        when(prescriptionRepository.findById(prescriptionId)).thenReturn(Optional.of(prescription));
+
+        assertThatThrownBy(() -> prescriptionService.returnMedicine(prescriptionId, reason))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("已发药");
+
+        verify(medicineRepository, never()).save(any());
+        verify(prescriptionRepository, never()).save(any());
+    }
 }

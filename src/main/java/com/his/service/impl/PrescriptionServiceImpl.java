@@ -255,6 +255,44 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         log.info("发药成功，处方ID: {}", id);
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void returnMedicine(Long id, String reason) {
+        log.info("开始退药，处方ID: {}, 原因: {}", id, reason);
+
+        Prescription prescription = getById(id);
+
+        if (prescription.getStatus() != 3) {
+            throw new IllegalStateException("只有已发药状态的处方才能退药，当前状态: " + prescription.getStatus());
+        }
+
+        // 1. 恢复药品库存
+        List<PrescriptionDetail> details = prescription.getDetails();
+        if (details != null && !details.isEmpty()) {
+            for (PrescriptionDetail detail : details) {
+                Medicine medicine = medicineRepository.findById(detail.getMedicine().getMainId())
+                        .orElseThrow(() -> new IllegalArgumentException("药品不存在，ID: " + detail.getMedicine().getMainId()));
+
+                // 恢复库存
+                medicine.setStockQuantity(medicine.getStockQuantity() + detail.getQuantity());
+                medicine.setUpdatedAt(LocalDateTime.now());
+                medicineRepository.save(medicine);
+
+                log.info("药品库存已恢复：药品ID={}, 名称={}, 恢复数量={}, 当前库存={}",
+                        medicine.getMainId(), medicine.getName(), detail.getQuantity(), medicine.getStockQuantity());
+            }
+        }
+
+        // 2. 更新处方状态
+        prescription.setStatus((short) 4); // 已退药
+        prescription.setReturnReason(reason);
+        prescription.setReturnTime(LocalDateTime.now());
+        prescription.setUpdatedAt(LocalDateTime.now());
+        prescriptionRepository.save(prescription);
+
+        log.info("退药成功，处方ID: {}", id);
+    }
+
     /**
      * 参数校验
      */

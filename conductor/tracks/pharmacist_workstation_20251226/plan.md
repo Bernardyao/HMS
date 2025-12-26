@@ -7,7 +7,7 @@
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Core Dispensing Logic'
 
 ## Phase 2: Medicine Return & Inventory
-- [ ] Task: Implement `returnMedicine(Long prescriptionId, String reason)` in `PrescriptionService`.
+- [x] Task: Implement `returnMedicine(Long prescriptionId, String reason)` in `PrescriptionService`. 4aad0da
     - Logic: Update status to `RETURNED`, record reason, and restore medicine stock.
 - [ ] Task: Implement `updateStock(Long medicineId, Integer quantity, String reason)` in `MedicineService`.
     - Logic: Manually adjust stock and log the change (if audit logging is implemented).
