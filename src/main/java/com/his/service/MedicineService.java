@@ -40,4 +40,13 @@ public interface MedicineService {
      * @return true=库存充足, false=库存不足
      */
     boolean checkStock(Long medicineId, Integer quantity);
+
+    /**
+     * 更新库存
+     *
+     * @param medicineId 药品ID
+     * @param quantity 变动数量（正数=入库，负数=出库/消耗）
+     * @param reason 变动原因
+     */
+    void updateStock(Long medicineId, Integer quantity, String reason);
 }

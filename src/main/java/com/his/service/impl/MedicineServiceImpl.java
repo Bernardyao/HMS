@@ -93,4 +93,36 @@ public class MedicineServiceImpl implements MedicineService {
         
         return sufficient;
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void updateStock(Long medicineId, Integer quantity, String reason) {
+        log.info("更新药品库存，药品ID: {}, 变动数量: {}, 原因: {}", medicineId, quantity, reason);
+
+        if (medicineId == null) {
+            throw new IllegalArgumentException("药品ID不能为空");
+        }
+        if (quantity == null || quantity == 0) {
+            throw new IllegalArgumentException("变动数量不能为空且不能为0");
+        }
+
+        // 使用 getById 查询药品，已包含判空和逻辑删除检查
+        Medicine medicine = getById(medicineId);
+
+        long newStock = (long) medicine.getStockQuantity() + quantity;
+
+        if (newStock < 0) {
+            throw new IllegalStateException("库存不足，当前库存: " + medicine.getStockQuantity() + ", 尝试扣减: " + Math.abs(quantity));
+        }
+
+        // 更新库存
+        medicine.setStockQuantity((int) newStock);
+        medicine.setUpdatedAt(java.time.LocalDateTime.now());
+        
+        // 实际保存
+        medicineRepository.save(medicine);
+
+        log.info("库存更新成功：药品ID={}, 原库存={}, 新库存={}, 原因={}", 
+                medicine.getMainId(), newStock - quantity, newStock, reason);
+    }
 }
