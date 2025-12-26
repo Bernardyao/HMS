@@ -21,6 +21,6 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Statistics & Reporting' [checkpoint: cecda66]
 
 ## Phase 4: Integration & Documentation
-- [ ] Task: Comprehensive Integration Tests for Pharmacist Workstation.
-- [ ] Task: Update API documentation (Knife4j annotations).
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: Integration & Documentation'
+- [x] Task: Comprehensive Integration Tests for Pharmacist Workstation. c61a51d
+- [x] Task: Update API documentation (Knife4j annotations). c61a51d
+- [x] Task: Conductor - User Manual Verification 'Phase 4: Integration & Documentation' [checkpoint: f22a315]
