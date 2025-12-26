@@ -45,4 +45,24 @@ public interface PrescriptionService {
      * @param remark 审核备注
      */
     void review(Long id, Long reviewDoctorId, String remark);
+
+    /**
+     * 获取待发药处方列表
+     * 已审核(status=2)且未发药的处方
+     * 
+     * @return 处方列表
+     */
+    java.util.List<Prescription> getPendingDispenseList();
+
+    /**
+     * 发药
+     * 1. 检查状态是否为已审核
+     * 2. 更新状态为已发药(status=3)
+     * 3. 记录发药人和发药时间
+     * 4. 扣减药品库存
+     * 
+     * @param id 处方ID
+     * @param dispenseBy 发药人ID
+     */
+    void dispense(Long id, Long dispenseBy);
 }

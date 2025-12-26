@@ -201,6 +201,60 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         log.info("处方审核成功，ID: {}", id);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<Prescription> getPendingDispenseList() {
+        log.info("查询待发药处方列表");
+        List<Prescription> prescriptions = prescriptionRepository.findByStatusAndIsDeleted((short) 2, (short) 0);
+        prescriptions.forEach(this::initializeLazyFields);
+        return prescriptions;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void dispense(Long id, Long dispenseBy) {
+        log.info("开始发药，处方ID: {}, 发药人ID: {}", id, dispenseBy);
+
+        Prescription prescription = getById(id);
+
+        if (prescription.getStatus() != 2) {
+            throw new IllegalStateException("只有已审核通过的处方才能发药，当前状态: " + prescription.getStatus());
+        }
+
+        // 1. 扣减药品库存
+        List<PrescriptionDetail> details = prescription.getDetails();
+        if (details == null || details.isEmpty()) {
+            throw new IllegalStateException("处方明细为空，无法发药");
+        }
+
+        for (PrescriptionDetail detail : details) {
+            Medicine medicine = medicineRepository.findById(detail.getMedicine().getMainId())
+                    .orElseThrow(() -> new IllegalArgumentException("药品不存在，ID: " + detail.getMedicine().getMainId()));
+
+            if (medicine.getStockQuantity() < detail.getQuantity()) {
+                throw new IllegalStateException("药品 [" + medicine.getName() + "] 库存不足，当前库存: " 
+                        + medicine.getStockQuantity() + ", 需求数量: " + detail.getQuantity());
+            }
+
+            // 扣减库存
+            medicine.setStockQuantity(medicine.getStockQuantity() - detail.getQuantity());
+            medicine.setUpdatedAt(LocalDateTime.now());
+            medicineRepository.save(medicine);
+            
+            log.info("药品库存已扣减：药品ID={}, 名称={}, 扣减数量={}, 剩余库存={}",
+                    medicine.getMainId(), medicine.getName(), detail.getQuantity(), medicine.getStockQuantity());
+        }
+
+        // 2. 更新处方状态
+        prescription.setStatus((short) 3); // 已发药
+        prescription.setDispenseBy(dispenseBy);
+        prescription.setDispenseTime(LocalDateTime.now());
+        prescription.setUpdatedAt(LocalDateTime.now());
+        prescriptionRepository.save(prescription);
+
+        log.info("发药成功，处方ID: {}", id);
+    }
+
     /**
      * 参数校验
      */
