@@ -2,7 +2,7 @@
 
 This plan outlines the implementation of the core charging and billing functionality for the HIS system.
 
-## Phase 1: Foundation - Data Model & Enums
+## Phase 1: Foundation - Data Model & Enums [checkpoint: e780486]
 Focus: Establishing the database schema and state definitions required for charging.
 
 - [x] Task: Create Database Migration Scripts (901cda7)
@@ -17,7 +17,7 @@ Focus: Establishing the database schema and state definitions required for charg
     - Implement JPA entities.
     - Implement Repositories.
     - **Test:** Repository integration tests (CRUD).
-- [ ] Task: Conductor - User Manual Verification 'Phase 1: Foundation' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Foundation' (Protocol in workflow.md) (e780486)
 
 ## Phase 2: Core Business Logic - Charging & Mock Payment
 Focus: Implementing the service layer for creating charges and processing payments.
