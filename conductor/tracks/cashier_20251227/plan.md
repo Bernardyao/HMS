@@ -25,7 +25,7 @@ Focus: Implementing the service layer for creating charges and processing paymen
 - [x] Task: Implement `ChargeService.createCharge()` (e43c744)
     - Implement aggregation and validation logic.
     - **Test:** Unit tests for calculation and validation.
-- [ ] Task: Refactor `PrescriptionService` for Charging Integration
+- [x] Task: Refactor `PrescriptionService` for Charging Integration (cc36860)
     - Extract `restoreInventoryOnly()` method.
     - Update `dispense()` to enforce `PAID(5)` status.
     - **Test:** Regression tests for Dispensing flow.
