@@ -8,11 +8,14 @@ import com.his.enums.PrescriptionStatusEnum;
 import com.his.enums.RegStatusEnum;
 import com.his.repository.*;
 import com.his.service.ChargeService;
+import com.his.service.PrescriptionService;
 import com.his.vo.ChargeVO;
+import jakarta.persistence.criteria.Predicate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,6 +39,7 @@ public class ChargeServiceImpl implements ChargeService {
     private final ChargeDetailRepository chargeDetailRepository;
     private final RegistrationRepository registrationRepository;
     private final PrescriptionRepository prescriptionRepository;
+    private final PrescriptionService prescriptionService;
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -99,7 +103,7 @@ public class ChargeServiceImpl implements ChargeService {
         charge.setPatient(registration.getPatient());
         charge.setRegistration(registration);
         charge.setChargeNo(generateChargeNo());
-        charge.setChargeType((short) (prescriptions.isEmpty() ? 1 : 2)); // 1=挂号费, 2=药费... 简单处理
+        charge.setChargeType((short) (prescriptions.isEmpty() ? 1 : 2)); // 1=挂号费, 2=药费
         charge.setTotalAmount(totalAmount);
         charge.setActualAmount(totalAmount);
         charge.setStatus(ChargeStatusEnum.UNPAID.getCode());
@@ -120,6 +124,7 @@ public class ChargeServiceImpl implements ChargeService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ChargeVO getById(Long id) {
         Charge charge = chargeRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("收费单不存在，ID: " + id));
@@ -131,12 +136,11 @@ public class ChargeServiceImpl implements ChargeService {
     public ChargeVO processPayment(Long id, PaymentDTO dto) {
         log.info("开始处理支付，收费单ID: {}, 支付金额: {}", id, dto.getPaidAmount());
 
-        // 1. 幂等性校验：如果交易流水号已存在
+        // 1. 幂等性校验
         if (dto.getTransactionNo() != null && !dto.getTransactionNo().isEmpty()) {
             var existingCharge = chargeRepository.findByTransactionNo(dto.getTransactionNo());
             if (existingCharge.isPresent()) {
                 Charge charge = existingCharge.get();
-                // 如果已支付且金额一致，直接返回成功（幂等）
                 if (ChargeStatusEnum.PAID.getCode().equals(charge.getStatus())) {
                     log.info("检测到重复支付请求（幂等），交易流水号: {}", dto.getTransactionNo());
                     return mapToVO(charge);
@@ -155,39 +159,30 @@ public class ChargeServiceImpl implements ChargeService {
             throw new IllegalArgumentException("收费单状态不正确，当前状态: " + charge.getStatus());
         }
 
-        // 4. 金额校验 (误差允许 0.01)
+        // 4. 金额校验
         if (charge.getActualAmount().subtract(dto.getPaidAmount()).abs().compareTo(new BigDecimal("0.01")) > 0) {
             throw new IllegalArgumentException("支付金额不匹配，应付: " + charge.getActualAmount() + ", 实付: " + dto.getPaidAmount());
         }
 
-        // 5. 模拟调用第三方支付 (Mock)
-        // 在这里可以添加日志模拟调用过程
-        log.info("正在调用第三方支付接口验证... 支付方式: {}, 流水号: {}", dto.getPaymentMethod(), dto.getTransactionNo());
-        // Mock: 默认成功
-
-        // 6. 更新收费单状态
+        // 5. 更新收费单状态
         charge.setStatus(ChargeStatusEnum.PAID.getCode());
         charge.setPaymentMethod(dto.getPaymentMethod());
         charge.setTransactionNo(dto.getTransactionNo());
         charge.setChargeTime(LocalDateTime.now());
-        charge.setUpdatedBy(null); // TODO: 获取当前登录用户ID
         
         Charge savedCharge = chargeRepository.save(charge);
 
-        // 7. 更新关联处方状态为已缴费
+        // 6. 更新处方状态
         if (charge.getDetails() != null) {
             for (ChargeDetail detail : charge.getDetails()) {
                 if ("PRESCRIPTION".equals(detail.getItemType())) {
                     Prescription prescription = prescriptionRepository.findById(detail.getItemId())
                             .orElseThrow(() -> new IllegalArgumentException("处方不存在，ID: " + detail.getItemId()));
                     
-                    // 只有 REVIEWED 状态才能更新为 PAID
-                    // 或者这里可以更宽容一点，防止并发问题？暂时严格处理
                     if (PrescriptionStatusEnum.REVIEWED.getCode().equals(prescription.getStatus())) {
                          prescription.setStatus(PrescriptionStatusEnum.PAID.getCode());
                          prescription.setUpdatedAt(LocalDateTime.now());
                          prescriptionRepository.save(prescription);
-                         log.info("处方状态已更新为已缴费，处方ID: {}", prescription.getMainId());
                     }
                 }
             }
@@ -198,15 +193,81 @@ public class ChargeServiceImpl implements ChargeService {
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public ChargeVO processRefund(Long id, String refundReason) {
-        // TODO: 实现退费逻辑
-        return null;
+        log.info("开始处理退费，收费单ID: {}, 原因: {}", id, refundReason);
+
+        Charge charge = chargeRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("收费单不存在，ID: " + id));
+
+        if (!ChargeStatusEnum.PAID.getCode().equals(charge.getStatus())) {
+            throw new IllegalStateException("只有已缴费状态的收费单才能退费");
+        }
+
+        // 1. 更新收费单状态
+        charge.setStatus(ChargeStatusEnum.REFUNDED.getCode());
+        charge.setRefundReason(refundReason);
+        charge.setRefundTime(LocalDateTime.now());
+        charge.setRefundAmount(charge.getActualAmount());
+        
+        Charge savedCharge = chargeRepository.save(charge);
+
+        // 2. 更新关联处方状态并决定是否恢复库存
+        if (charge.getDetails() != null) {
+            for (ChargeDetail detail : charge.getDetails()) {
+                if ("PRESCRIPTION".equals(detail.getItemType())) {
+                    Prescription prescription = prescriptionRepository.findById(detail.getItemId())
+                            .orElseThrow(() -> new IllegalArgumentException("处方不存在，ID: " + detail.getItemId()));
+                    
+                    if (PrescriptionStatusEnum.PAID.getCode().equals(prescription.getStatus())) {
+                        // 场景 A: 已缴费未发药 -> 回退到已审核
+                        prescription.setStatus(PrescriptionStatusEnum.REVIEWED.getCode());
+                        prescription.setUpdatedAt(LocalDateTime.now());
+                        prescriptionRepository.save(prescription);
+                    } else if (PrescriptionStatusEnum.DISPENSED.getCode().equals(prescription.getStatus())) {
+                        // 场景 B: 已缴费已发药 -> 状态变为已退费并恢复库存
+                        prescription.setStatus(PrescriptionStatusEnum.REFUNDED.getCode());
+                        prescription.setUpdatedAt(LocalDateTime.now());
+                        prescriptionRepository.save(prescription);
+                        
+                        // 恢复库存逻辑 (调用 PrescriptionService)
+                        prescriptionService.restoreInventoryOnly(prescription.getMainId());
+                    }
+                }
+            }
+        }
+
+        log.info("退费成功，收费单ID: {}", id);
+        return mapToVO(savedCharge);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ChargeVO> queryCharges(String chargeNo, Long patientId, Integer status, LocalDate startDate, LocalDate endDate, Pageable pageable) {
-        // TODO: 实现查询逻辑
-        return null;
+        Specification<Charge> spec = (root, query, cb) -> {
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.equal(root.get("isDeleted"), (short) 0));
+            
+            if (chargeNo != null && !chargeNo.isEmpty()) {
+                predicates.add(cb.equal(root.get("chargeNo"), chargeNo));
+            }
+            if (patientId != null) {
+                predicates.add(cb.equal(root.get("patient").get("mainId"), patientId));
+            }
+            if (status != null) {
+                predicates.add(cb.equal(root.get("status"), status.shortValue()));
+            }
+            if (startDate != null) {
+                predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), startDate.atStartOfDay()));
+            }
+            if (endDate != null) {
+                predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), endDate.atTime(23, 59, 59)));
+            }
+            
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+
+        return chargeRepository.findAll(spec, pageable).map(this::mapToVO);
     }
 
     private String generateChargeNo() {
