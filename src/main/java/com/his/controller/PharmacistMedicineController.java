@@ -1,6 +1,7 @@
 package com.his.controller;
 
 import com.his.common.Result;
+import com.his.converter.VoConverter;
 import com.his.entity.Medicine;
 import com.his.service.MedicineService;
 import com.his.vo.MedicineVO;
@@ -58,7 +59,7 @@ public class PharmacistMedicineController {
             }
             
             List<MedicineVO> voList = medicines.stream()
-                .map(this::convertToVO)
+                .map(VoConverter::toMedicineVO)
                 .collect(Collectors.toList());
             
             return Result.success("查询成功", voList);
@@ -86,7 +87,7 @@ public class PharmacistMedicineController {
                 .collect(Collectors.toList());
             
             List<MedicineVO> voList = lowStockMedicines.stream()
-                .map(this::convertToVO)
+                .map(VoConverter::toMedicineVO)
                 .collect(Collectors.toList());
             
             return Result.success(String.format("查询成功，共 %d 个药品库存不足", voList.size()), voList);
@@ -129,28 +130,5 @@ public class PharmacistMedicineController {
             log.error("更新库存失败", e);
             return Result.error("更新失败: " + e.getMessage());
         }
-    }
-
-    /**
-     * Entity转VO
-     */
-    private MedicineVO convertToVO(Medicine medicine) {
-        return MedicineVO.builder()
-            .mainId(medicine.getMainId())
-            .medicineCode(medicine.getMedicineCode())
-            .name(medicine.getName())
-            .genericName(medicine.getGenericName())
-            .retailPrice(medicine.getRetailPrice())
-            .stockQuantity(medicine.getStockQuantity())
-            .status(medicine.getStatus())
-            .specification(medicine.getSpecification())
-            .unit(medicine.getUnit())
-            .dosageForm(medicine.getDosageForm())
-            .manufacturer(medicine.getManufacturer())
-            .category(medicine.getCategory())
-            .isPrescription(medicine.getIsPrescription())
-            .createdAt(medicine.getCreatedAt())
-            .updatedAt(medicine.getUpdatedAt())
-            .build();
     }
 }

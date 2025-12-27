@@ -629,11 +629,10 @@ class DoctorControllerTest {
     @DisplayName("测试查询患者详细信息 - 未认证访问")
     void testGetPatientDetail_Unauthorized() throws Exception {
         // Spring Security在未认证时可能返回401或403，取决于配置
-        Integer[] expectedStatuses = {401, 403};
         mockMvc.perform(get("/api/doctor/patients/{id}", testPatientId)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andDo(print())
-                .andExpect(status().is(org.hamcrest.Matchers.isIn(expectedStatuses))); // 未认证返回401，认证但无权限返回403
+                .andExpect(status().is(anyOf(is(401), is(403)))); // 未认证返回401，认证但无权限返回403
     }
 
     @Test

@@ -1,6 +1,7 @@
 package com.his.controller;
 
 import com.his.common.Result;
+import com.his.converter.VoConverter;
 import com.his.dto.PrescriptionDTO;
 import com.his.entity.Prescription;
 import com.his.service.PrescriptionService;
@@ -40,10 +41,10 @@ public class PrescriptionController {
     @PostMapping("/create")
     public Result<PrescriptionVO> createPrescription(@RequestBody PrescriptionDTO dto) {
         try {
-            log.info("收到创建处方请求，挂号单ID: {}, 药品数量: {}", 
+            log.info("收到创建处方请求，挂号单ID: {}, 药品数量: {}",
                     dto.getRegistrationId(), dto.getItems() != null ? dto.getItems().size() : 0);
             Prescription prescription = prescriptionService.createPrescription(dto);
-            PrescriptionVO vo = convertToVO(prescription);
+            PrescriptionVO vo = VoConverter.toPrescriptionVO(prescription);
             return Result.success("处方创建成功", vo);
         } catch (IllegalArgumentException e) {
             log.warn("创建处方失败: {}", e.getMessage());
@@ -69,7 +70,7 @@ public class PrescriptionController {
         try {
             log.info("收到查询处方请求，ID: {}", id);
             Prescription prescription = prescriptionService.getById(id);
-            PrescriptionVO vo = convertToVO(prescription);
+            PrescriptionVO vo = VoConverter.toPrescriptionVO(prescription);
             return Result.success("查询成功", vo);
         } catch (IllegalArgumentException e) {
             log.warn("查询处方失败: {}", e.getMessage());
@@ -96,7 +97,7 @@ public class PrescriptionController {
             log.info("收到根据病历查询处方列表请求，病历ID: {}", recordId);
             List<Prescription> prescriptions = prescriptionService.getByRecordId(recordId);
             List<PrescriptionVO> voList = prescriptions.stream()
-                .map(this::convertToVO)
+                .map(VoConverter::toPrescriptionVO)
                 .collect(Collectors.toList());
             return Result.success("查询成功", voList);
         } catch (IllegalArgumentException e) {
@@ -137,33 +138,5 @@ public class PrescriptionController {
             log.error("审核处方失败", e);
             return Result.error("审核失败: " + e.getMessage());
         }
-    }
-
-    /**
-     * Entity转VO
-     */
-    private PrescriptionVO convertToVO(Prescription prescription) {
-        return PrescriptionVO.builder()
-            .mainId(prescription.getMainId())
-            .prescriptionNo(prescription.getPrescriptionNo())
-            .recordId(prescription.getMedicalRecord() != null ? prescription.getMedicalRecord().getMainId() : null)
-            .patientId(prescription.getPatient() != null ? prescription.getPatient().getMainId() : null)
-            .patientName(prescription.getPatient() != null ? prescription.getPatient().getName() : null)
-            .doctorId(prescription.getDoctor() != null ? prescription.getDoctor().getMainId() : null)
-            .doctorName(prescription.getDoctor() != null ? prescription.getDoctor().getName() : null)
-            .prescriptionType(prescription.getPrescriptionType())
-            .totalAmount(prescription.getTotalAmount())
-            .itemCount(prescription.getItemCount())
-            .status(prescription.getStatus())
-            .validityDays(prescription.getValidityDays())
-            .reviewDoctorId(prescription.getReviewDoctor() != null ? prescription.getReviewDoctor().getMainId() : null)
-            .reviewDoctorName(prescription.getReviewDoctor() != null ? prescription.getReviewDoctor().getName() : null)
-            .reviewTime(prescription.getReviewTime())
-            .reviewRemark(prescription.getReviewRemark())
-            .dispenseTime(prescription.getDispenseTime())
-            .dispenseBy(prescription.getDispenseBy())
-            .createdAt(prescription.getCreatedAt())
-            .updatedAt(prescription.getUpdatedAt())
-            .build();
     }
 }

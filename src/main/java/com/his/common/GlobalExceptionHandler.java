@@ -1,5 +1,6 @@
 package com.his.common;
 
+import com.his.exception.BusinessRuntimeException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -77,8 +78,23 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Result<Void>> handleIllegalArgumentException(
             IllegalArgumentException e,
             HttpServletRequest request) {
-        
+
         log.warn("业务异常: {}, 请求路径: {}", e.getMessage(), request.getRequestURI());
+        return ResponseEntity
+                .badRequest()
+                .body(Result.badRequest(e.getMessage()));
+    }
+
+    /**
+     * 处理业务运行时异常
+     */
+    @ExceptionHandler(BusinessRuntimeException.class)
+    public ResponseEntity<Result<Void>> handleBusinessRuntimeException(
+            BusinessRuntimeException e,
+            HttpServletRequest request) {
+
+        log.warn("业务异常: [{}] {}, 请求路径: {}",
+                e.getCode(), e.getMessage(), request.getRequestURI());
         return ResponseEntity
                 .badRequest()
                 .body(Result.badRequest(e.getMessage()));

@@ -43,9 +43,12 @@
 *   **电子病历 (EMR)**：标准化的电子病历书写与管理。
 *   **智能处方**：开具处方时实时校验药品库存，防止超售。
 
-#### 3. 药房管理 (Pharmacy Management) 💊
-*   **发药流程**：严格的业务逻辑控制，仅当处方完成缴费后方可发药。
-*   **库存管控**：药品库存预警与退药流程处理。
+#### 3. 药师工作站 (Pharmacist Workstation) 💊
+*   **处方审核**：药师对医生开具的处方进行专业审核，确保用药安全。
+*   **药品发药**：严格的业务逻辑控制，仅当处方完成缴费后方可发药，自动扣减库存。
+*   **退药处理**：支持患者退药申请，自动恢复药品库存。
+*   **库存管理**：实时库存查询、低库存预警（库存 < 100）、手动库存调整。
+*   **工作统计**：药师每日发药统计（处方数、金额、药品数）。
 
 #### 4. 收费管理 (Financials) 💰
 *   **交易处理**：收费员专属界面，处理处方缴费与退费业务，生成交易记录。
@@ -116,11 +119,53 @@ psql -U postgres -d his_project -f sql/his_design_bigserial.sql
 
 ## 📚 API 文档 (API Documentation)
 
+### API 路径架构
+
+本项目采用模块化的 API 架构，按工作站和功能划分路径：
+
+| API 路径前缀 | 说明 | 使用角色 |
+|-------------|------|---------|
+| `/api/auth` | 认证接口 | 所有用户 |
+| `/api/common` | 公共接口 | 所有认证用户 |
+| `/api/doctor` | 医生工作站 | DOCTOR, ADMIN |
+| `/api/nurse` | 护士工作站 | NURSE, ADMIN |
+| `/api/pharmacist` | 药师工作站 | PHARMACIST, ADMIN |
+
+### 药品相关接口说明
+
+| 功能 | 正确路径 | 说明 |
+|------|---------|------|
+| 药品搜索/详情 | `GET /api/common/medicines/*` | 所有认证用户可用 |
+| 药师库存管理 | `GET /api/pharmacist/medicines/inventory` | 药师专用 |
+| 处方发药/退药 | `POST /api/pharmacist/prescriptions/{id}/dispense` | 药师专用 |
+| 待发药列表 | `GET /api/pharmacist/prescriptions/pending` | 药师专用 |
+
+⚠️ **注意**: 旧的 `/api/medicine/*` 路径已被移除，请使用上述正确的 API 路径。
+
+### 在线接口文档
+
 后端服务启动后，可访问 Knife4j 在线接口文档进行调试：
 
 **访问地址：** `http://localhost:8080/doc.html`
 
 > 💡 **提示：** 您可以使用 `admin` 账号登录获取 Token，然后在文档页面的 "Authorize" 功能中设置 Token，以便调试受保护的接口。
+
+---
+
+## 📚 项目文档 (Documentation)
+
+### 核心文档
+- [项目企划书](./docs/project-proposal.md) - 项目概述与目标
+- [技术架构文档](./docs/技术架构文档.md) - 系统架构设计
+- [开发路线图](./docs/开发路线图.md) - 开发进度与规划
+
+### 工作站文档
+- [医生工作站开发文档](./docs/医生工作站开发文档.md) - 医生工作站功能详解
+- [药师工作站开发文档](./docs/药师工作站开发文档.md) - 药师工作站功能详解
+
+### 指南文档
+- [认证与医生上下文指南](./docs/认证与医生上下文使用指南.md) - 认证机制说明
+- [Ubuntu部署指南](./docs/DEPLOY_UBUNTU.md) - 服务器部署指南
 
 ---
 

@@ -1,6 +1,7 @@
 package com.his.controller;
 
 import com.his.common.Result;
+import com.his.converter.VoConverter;
 import com.his.entity.Medicine;
 import com.his.service.MedicineService;
 import com.his.vo.MedicineVO;
@@ -45,9 +46,9 @@ public class CommonMedicineController {
         
         List<Medicine> medicines = medicineService.searchMedicines(keyword);
         List<MedicineVO> voList = medicines.stream()
-            .map(this::convertToVO)
+            .map(VoConverter::toMedicineVO)
             .collect(Collectors.toList());
-        
+
         return Result.success("查询成功", voList);
     }
 
@@ -67,31 +68,8 @@ public class CommonMedicineController {
         log.info("查询药品详情，ID: {}", id);
         
         Medicine medicine = medicineService.getById(id);
-        MedicineVO vo = convertToVO(medicine);
-        
-        return Result.success("查询成功", vo);
-    }
+        MedicineVO vo = VoConverter.toMedicineVO(medicine);
 
-    /**
-     * Entity转VO
-     */
-    private MedicineVO convertToVO(Medicine medicine) {
-        return MedicineVO.builder()
-            .mainId(medicine.getMainId())
-            .medicineCode(medicine.getMedicineCode())
-            .name(medicine.getName())
-            .genericName(medicine.getGenericName())
-            .retailPrice(medicine.getRetailPrice())
-            .stockQuantity(medicine.getStockQuantity())
-            .status(medicine.getStatus())
-            .specification(medicine.getSpecification())
-            .unit(medicine.getUnit())
-            .dosageForm(medicine.getDosageForm())
-            .manufacturer(medicine.getManufacturer())
-            .category(medicine.getCategory())
-            .isPrescription(medicine.getIsPrescription())
-            .createdAt(medicine.getCreatedAt())
-            .updatedAt(medicine.getUpdatedAt())
-            .build();
+        return Result.success("查询成功", vo);
     }
 }
