@@ -41,7 +41,7 @@ Focus: Implementing refund handling and financial reporting.
 - [x] Task: Implement `ChargeService.processRefund()` (0f8ae78)
     - Implement refund logic and inventory restoration integration.
     - **Test:** Integration tests for Refund flow (with and without inventory restore).
-- [ ] Task: Implement Daily Settlement Report
+- [x] Task: Implement Daily Settlement Report (207eacb)
     - Implement statistics aggregation logic.
     - **Test:** Unit tests for statistics calculation.
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: Advanced Logic' (Protocol in workflow.md)
