@@ -1,6 +1,7 @@
 package com.his.service.impl;
 
 import com.his.dto.CreateChargeDTO;
+import com.his.dto.PaymentDTO;
 import com.his.entity.Patient;
 import com.his.entity.Prescription;
 import com.his.entity.Registration;
@@ -10,6 +11,7 @@ import com.his.repository.ChargeDetailRepository;
 import com.his.repository.ChargeRepository;
 import com.his.repository.PrescriptionRepository;
 import com.his.repository.RegistrationRepository;
+import com.his.service.PrescriptionService;
 import com.his.vo.ChargeVO;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,6 +39,8 @@ class ChargeServiceImplTest {
     private RegistrationRepository registrationRepository;
     @Mock
     private PrescriptionRepository prescriptionRepository;
+    @Mock
+    private PrescriptionService prescriptionService;
 
     @InjectMocks
     private ChargeServiceImpl chargeService;
@@ -100,7 +104,7 @@ class ChargeServiceImplTest {
         charge.setMainId(chargeId);
         charge.setStatus(com.his.enums.ChargeStatusEnum.UNPAID.getCode());
         charge.setTotalAmount(new BigDecimal("100.00"));
-        charge.setActualAmount(new BigDecimal("100.00")); // Fix: Set actualAmount
+        charge.setActualAmount(new BigDecimal("100.00"));
         charge.setIsDeleted((short) 0);
         
         Patient patient = new Patient();
@@ -114,7 +118,6 @@ class ChargeServiceImplTest {
         paymentDTO.setPaidAmount(new BigDecimal("100.00"));
 
         when(chargeRepository.findById(chargeId)).thenReturn(Optional.of(charge));
-        // Removed unnecessary existsByChargeNo stub
         
         // Mock prescription update
         com.his.entity.ChargeDetail detail = new com.his.entity.ChargeDetail();
@@ -124,10 +127,10 @@ class ChargeServiceImplTest {
         
         Prescription prescription = new Prescription();
         prescription.setMainId(10L);
-        prescription.setStatus(PrescriptionStatusEnum.REVIEWED.getCode()); // Add initial status
+        prescription.setStatus(PrescriptionStatusEnum.REVIEWED.getCode());
         when(prescriptionRepository.findById(10L)).thenReturn(Optional.of(prescription));
         
-        when(chargeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0)); // Mock save
+        when(chargeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
         // When
         ChargeVO result = chargeService.processPayment(chargeId, paymentDTO);
@@ -161,7 +164,6 @@ class ChargeServiceImplTest {
         paymentDTO.setTransactionNo(transactionNo);
         paymentDTO.setPaidAmount(new BigDecimal("100.00"));
 
-        // When we try to pay an already paid charge with the same transaction no
         when(chargeRepository.findByTransactionNo(transactionNo)).thenReturn(Optional.of(charge));
 
         // When
@@ -169,7 +171,85 @@ class ChargeServiceImplTest {
 
         // Then
         assertThat(result.getStatus()).isEqualTo(com.his.enums.ChargeStatusEnum.PAID.getCode());
-        // Verify no actual save logic was triggered again
         verify(prescriptionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("测试退费：成功场景（处方仅缴费未发药）")
+    void processRefund_Success_NotDispensed() {
+        // Given
+        Long chargeId = 1000L;
+        String refundReason = "Patient allergy";
+        
+        com.his.entity.Charge charge = new com.his.entity.Charge();
+        charge.setMainId(chargeId);
+        charge.setStatus(com.his.enums.ChargeStatusEnum.PAID.getCode());
+        charge.setTotalAmount(new BigDecimal("100.00"));
+        charge.setIsDeleted((short) 0);
+        
+        Patient patient = new Patient();
+        patient.setMainId(100L);
+        patient.setName("张三");
+        charge.setPatient(patient);
+
+        com.his.entity.ChargeDetail detail = new com.his.entity.ChargeDetail();
+        detail.setItemType("PRESCRIPTION");
+        detail.setItemId(10L);
+        charge.setDetails(Arrays.asList(detail));
+
+        Prescription prescription = new Prescription();
+        prescription.setMainId(10L);
+        prescription.setStatus(PrescriptionStatusEnum.PAID.getCode()); // 已缴费
+
+        when(chargeRepository.findById(chargeId)).thenReturn(Optional.of(charge));
+        when(prescriptionRepository.findById(10L)).thenReturn(Optional.of(prescription));
+        when(chargeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        ChargeVO result = chargeService.processRefund(chargeId, refundReason);
+
+        // Then
+        assertThat(result.getStatus()).isEqualTo(com.his.enums.ChargeStatusEnum.REFUNDED.getCode());
+        verify(prescriptionRepository).save(argThat(p -> p.getStatus().equals(PrescriptionStatusEnum.REVIEWED.getCode())));
+        verify(prescriptionService, never()).restoreInventoryOnly(anyLong());
+    }
+
+    @Test
+    @DisplayName("测试退费：成功场景（处方已发药）")
+    void processRefund_Success_Dispensed() {
+        // Given
+        Long chargeId = 1000L;
+        String refundReason = "Patient request";
+        
+        com.his.entity.Charge charge = new com.his.entity.Charge();
+        charge.setMainId(chargeId);
+        charge.setStatus(com.his.enums.ChargeStatusEnum.PAID.getCode());
+        charge.setIsDeleted((short) 0);
+        
+        Patient patient = new Patient();
+        patient.setMainId(100L);
+        patient.setName("张三");
+        charge.setPatient(patient);
+
+        com.his.entity.ChargeDetail detail = new com.his.entity.ChargeDetail();
+        detail.setItemType("PRESCRIPTION");
+        detail.setItemId(10L);
+        charge.setDetails(Arrays.asList(detail));
+
+        Prescription prescription = new Prescription();
+        prescription.setMainId(10L);
+        prescription.setStatus(PrescriptionStatusEnum.DISPENSED.getCode()); // 已发药
+
+        when(chargeRepository.findById(chargeId)).thenReturn(Optional.of(charge));
+        when(prescriptionRepository.findById(10L)).thenReturn(Optional.of(prescription));
+        when(chargeRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // When
+        ChargeVO result = chargeService.processRefund(chargeId, refundReason);
+
+        // Then
+        assertThat(result.getStatus()).isEqualTo(com.his.enums.ChargeStatusEnum.REFUNDED.getCode());
+        verify(prescriptionRepository).save(argThat(p -> p.getStatus().equals(PrescriptionStatusEnum.REFUNDED.getCode())));
+        verify(prescriptionService).restoreInventoryOnly(10L);
     }
 }
