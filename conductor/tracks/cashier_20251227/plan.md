@@ -8,7 +8,7 @@ Focus: Establishing the database schema and state definitions required for charg
 - [x] Task: Create Database Migration Scripts (901cda7)
     - Write SQL scripts to create `his_charge` and `his_charge_detail` tables.
     - Write SQL scripts to update `his_prescription` status comments/constraints (if applicable).
-- [ ] Task: Update `Prescription` status flow and create Enums
+- [x] Task: Update `Prescription` status flow and create Enums (3e79fdc)
     - Add `PAID(5)` status to `Prescription` logic.
     - Ensure `REFUNDED(4)` status consistency.
     - Create `ChargeStatus` and `PaymentMethod` enums.
