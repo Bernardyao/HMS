@@ -78,7 +78,7 @@ public class Prescription {
     private Integer itemCount = 0;
 
     /**
-     * 状态（0=草稿, 1=已开方, 2=已审核, 3=已发药, 4=已退药）
+     * 状态（0=草稿, 1=已开方, 2=已审核, 3=已发药, 4=已退费, 5=已缴费）
      */
     @Column(name = "status", nullable = false)
     private Short status = 0;
