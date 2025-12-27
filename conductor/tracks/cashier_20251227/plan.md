@@ -19,7 +19,7 @@ Focus: Establishing the database schema and state definitions required for charg
     - **Test:** Repository integration tests (CRUD).
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Foundation' (Protocol in workflow.md) (e780486)
 
-## Phase 2: Core Business Logic - Charging & Mock Payment
+## Phase 2: Core Business Logic - Charging & Mock Payment [checkpoint: 4e5c4b3]
 Focus: Implementing the service layer for creating charges and processing payments.
 
 - [x] Task: Implement `ChargeService.createCharge()` (e43c744)
@@ -33,7 +33,7 @@ Focus: Implementing the service layer for creating charges and processing paymen
     - Implement payment processing, idempotency, and status updates.
     - Implement Mock Payment simulation.
     - **Test:** Unit/Integration tests for Payment flow and Idempotency.
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Core Business Logic' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Core Business Logic' (Protocol in workflow.md) (4e5c4b3)
 
 ## Phase 3: Advanced Logic - Refunds & Reports
 Focus: Implementing refund handling and financial reporting.
