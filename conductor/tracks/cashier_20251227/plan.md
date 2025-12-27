@@ -13,7 +13,7 @@ Focus: Establishing the database schema and state definitions required for charg
     - Ensure `REFUNDED(4)` status consistency.
     - Create `ChargeStatus` and `PaymentMethod` enums.
     - **Test:** Unit tests for Enum state transitions.
-- [ ] Task: Create `Charge` and `ChargeDetail` entities and repositories
+- [x] Task: Create `Charge` and `ChargeDetail` entities and repositories (c6a1c33)
     - Implement JPA entities.
     - Implement Repositories.
     - **Test:** Repository integration tests (CRUD).
