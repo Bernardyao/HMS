@@ -1,6 +1,5 @@
 package com.his.controller;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.his.config.JwtAuthenticationToken;
 import com.his.entity.*;
 import com.his.repository.*;
@@ -38,9 +37,6 @@ class PharmacistWorkstationIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private DepartmentRepository departmentRepository;

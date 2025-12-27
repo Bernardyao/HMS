@@ -1,5 +1,6 @@
 package com.his.service.impl;
 
+import com.his.converter.VoConverter;
 import com.his.entity.Department;
 import com.his.entity.Patient;
 import com.his.entity.Registration;
@@ -125,7 +126,7 @@ public class DoctorServiceImpl implements DoctorService {
 
         // 转换为 VO
         return registrations.stream()
-                .map(this::convertToVO)
+                .map(VoConverter::toRegistrationVO)
                 .collect(Collectors.toList());
     }
 
@@ -297,68 +298,6 @@ public class DoctorServiceImpl implements DoctorService {
         updateStatus(regId, newStatus);
     }
 
-
-    private RegistrationVO convertToVO(Registration registration) {
-        // 防御性编程: 检查入参
-        if (registration == null) {
-            log.error("convertToVO失败: registration为null");
-            throw new IllegalArgumentException("挂号记录不能为空");
-        }
-        
-        RegistrationVO vo = new RegistrationVO();
-        vo.setId(registration.getMainId());
-        vo.setRegNo(registration.getRegNo());
-        
-        // 防御性编程: 检查患者信息
-        if (registration.getPatient() != null) {
-            vo.setPatientId(registration.getPatient().getMainId());
-            vo.setPatientName(registration.getPatient().getName());
-            vo.setGender(registration.getPatient().getGender());
-            vo.setAge(registration.getPatient().getAge());
-        } else {
-            log.warn("挂号记录缺少患者信息,挂号ID: {}", registration.getMainId());
-        }
-        
-        // 防御性编程: 检查科室信息
-        if (registration.getDepartment() != null) {
-            vo.setDeptId(registration.getDepartment().getMainId());
-            vo.setDeptName(registration.getDepartment().getName());
-        } else {
-            log.warn("挂号记录缺少科室信息,挂号ID: {}", registration.getMainId());
-        }
-        
-        // 防御性编程: 检查医生信息
-        if (registration.getDoctor() != null) {
-            vo.setDoctorId(registration.getDoctor().getMainId());
-            vo.setDoctorName(registration.getDoctor().getName());
-        } else {
-            log.warn("挂号记录缺少医生信息,挂号ID: {}", registration.getMainId());
-        }
-        
-        vo.setStatus(registration.getStatus());
-        
-        // 防御性编程: 安全地获取状态描述
-        try {
-            if (registration.getStatus() != null) {
-                vo.setStatusDesc(RegStatusEnum.fromCode(registration.getStatus()).getDescription());
-            } else {
-                vo.setStatusDesc("未知状态");
-                log.warn("挂号记录状态为空,挂号ID: {}", registration.getMainId());
-            }
-        } catch (Exception e) {
-            vo.setStatusDesc("未知状态");
-            log.error("解析挂号状态失败,挂号ID: {}, 状态码: {}", 
-                    registration.getMainId(), registration.getStatus(), e);
-        }
-        
-        vo.setVisitDate(registration.getVisitDate());
-        vo.setRegistrationFee(registration.getRegistrationFee());
-        vo.setQueueNo(registration.getQueueNo());
-        vo.setAppointmentTime(registration.getAppointmentTime());
-        vo.setCreatedAt(registration.getCreatedAt());
-
-        return vo;
-    }
 
     /**
      * 【新增】查询患者详细信息（包含数据脱敏）

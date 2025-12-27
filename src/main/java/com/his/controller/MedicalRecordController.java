@@ -1,6 +1,7 @@
 package com.his.controller;
 
 import com.his.common.Result;
+import com.his.converter.VoConverter;
 import com.his.dto.MedicalRecordDTO;
 import com.his.entity.MedicalRecord;
 import com.his.service.MedicalRecordService;
@@ -39,7 +40,7 @@ public class MedicalRecordController {
         try {
             log.info("收到保存/更新病历请求，挂号单ID: {}", dto.getRegistrationId());
             MedicalRecord record = medicalRecordService.saveOrUpdate(dto);
-            MedicalRecordVO vo = convertToVO(record);
+            MedicalRecordVO vo = VoConverter.toMedicalRecordVO(record);
             return Result.success("保存成功", vo);
         } catch (IllegalArgumentException e) {
             log.warn("保存病历失败: {}", e.getMessage());
@@ -64,7 +65,7 @@ public class MedicalRecordController {
         try {
             log.info("收到查询病历请求，ID: {}", id);
             MedicalRecord record = medicalRecordService.getById(id);
-            MedicalRecordVO vo = convertToVO(record);
+            MedicalRecordVO vo = VoConverter.toMedicalRecordVO(record);
             return Result.success("查询成功", vo);
         } catch (IllegalArgumentException e) {
             log.warn("查询病历失败: {}", e.getMessage());
@@ -92,7 +93,7 @@ public class MedicalRecordController {
             if (record == null) {
                 return Result.success("该挂号单尚未创建病历", null);
             }
-            MedicalRecordVO vo = convertToVO(record);
+            MedicalRecordVO vo = VoConverter.toMedicalRecordVO(record);
             return Result.success("查询成功", vo);
         } catch (IllegalArgumentException e) {
             log.warn("查询病历失败: {}", e.getMessage());
@@ -125,35 +126,5 @@ public class MedicalRecordController {
             log.error("提交病历失败", e);
             return Result.error("提交失败: " + e.getMessage());
         }
-    }
-
-    /**
-     * Entity转VO
-     */
-    private MedicalRecordVO convertToVO(MedicalRecord record) {
-        return MedicalRecordVO.builder()
-            .mainId(record.getMainId())
-            .recordNo(record.getRecordNo())
-            .registrationId(record.getRegistration() != null ? record.getRegistration().getMainId() : null)
-            .patientId(record.getPatient() != null ? record.getPatient().getMainId() : null)
-            .patientName(record.getPatient() != null ? record.getPatient().getName() : null)
-            .doctorId(record.getDoctor() != null ? record.getDoctor().getMainId() : null)
-            .doctorName(record.getDoctor() != null ? record.getDoctor().getName() : null)
-            .chiefComplaint(record.getChiefComplaint())
-            .presentIllness(record.getPresentIllness())
-            .pastHistory(record.getPastHistory())
-            .personalHistory(record.getPersonalHistory())
-            .familyHistory(record.getFamilyHistory())
-            .physicalExam(record.getPhysicalExam())
-            .auxiliaryExam(record.getAuxiliaryExam())
-            .diagnosis(record.getDiagnosis())
-            .diagnosisCode(record.getDiagnosisCode())
-            .treatmentPlan(record.getTreatmentPlan())
-            .doctorAdvice(record.getDoctorAdvice())
-            .status(record.getStatus())
-            .visitTime(record.getVisitTime())
-            .createdAt(record.getCreatedAt())
-            .updatedAt(record.getUpdatedAt())
-            .build();
     }
 }

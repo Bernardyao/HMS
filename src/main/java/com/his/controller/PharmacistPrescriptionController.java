@@ -2,6 +2,7 @@ package com.his.controller;
 
 import com.his.common.Result;
 import com.his.common.SecurityUtils;
+import com.his.converter.VoConverter;
 import com.his.entity.Prescription;
 import com.his.service.PrescriptionService;
 import com.his.vo.PrescriptionVO;
@@ -12,9 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
-import java.util.stream.Collectors;
 
 
 /**
@@ -43,7 +42,7 @@ public class PharmacistPrescriptionController {
             log.info("查询待发药处方列表");
             List<Prescription> prescriptions = prescriptionService.getPendingDispenseList();
             List<PrescriptionVO> vos = prescriptions.stream()
-                    .map(this::convertToVO)
+                    .map(VoConverter::toPrescriptionVO)
                     .collect(java.util.stream.Collectors.toList());
             return Result.success("查询成功", vos);
         } catch (Exception e) {
@@ -66,7 +65,7 @@ public class PharmacistPrescriptionController {
         try {
             log.info("收到查询处方请求，ID: {}", id);
             Prescription prescription = prescriptionService.getById(id);
-            PrescriptionVO vo = convertToVO(prescription);
+            PrescriptionVO vo = VoConverter.toPrescriptionVO(prescription);
             return Result.success("查询成功", vo);
         } catch (IllegalArgumentException e) {
             log.warn("查询处方失败: {}", e.getMessage());
@@ -190,33 +189,5 @@ public class PharmacistPrescriptionController {
             log.error("查询发药统计失败", e);
             return Result.error("查询失败: " + e.getMessage());
         }
-    }
-
-    /**
-     * Entity转VO
-     */
-    private PrescriptionVO convertToVO(Prescription prescription) {
-        return PrescriptionVO.builder()
-            .mainId(prescription.getMainId())
-            .prescriptionNo(prescription.getPrescriptionNo())
-            .recordId(prescription.getMedicalRecord() != null ? prescription.getMedicalRecord().getMainId() : null)
-            .patientId(prescription.getPatient() != null ? prescription.getPatient().getMainId() : null)
-            .patientName(prescription.getPatient() != null ? prescription.getPatient().getName() : null)
-            .doctorId(prescription.getDoctor() != null ? prescription.getDoctor().getMainId() : null)
-            .doctorName(prescription.getDoctor() != null ? prescription.getDoctor().getName() : null)
-            .prescriptionType(prescription.getPrescriptionType())
-            .totalAmount(prescription.getTotalAmount())
-            .itemCount(prescription.getItemCount())
-            .status(prescription.getStatus())
-            .validityDays(prescription.getValidityDays())
-            .reviewDoctorId(prescription.getReviewDoctor() != null ? prescription.getReviewDoctor().getMainId() : null)
-            .reviewDoctorName(prescription.getReviewDoctor() != null ? prescription.getReviewDoctor().getName() : null)
-            .reviewTime(prescription.getReviewTime())
-            .reviewRemark(prescription.getReviewRemark())
-            .dispenseTime(prescription.getDispenseTime())
-            .dispenseBy(prescription.getDispenseBy())
-            .createdAt(prescription.getCreatedAt())
-            .updatedAt(prescription.getUpdatedAt())
-            .build();
     }
 }
