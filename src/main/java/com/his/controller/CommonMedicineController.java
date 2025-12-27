@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,12 +19,13 @@ import java.util.stream.Collectors;
 
 /**
  * 公共接口-药品搜索控制器
- * 权限：所有认证用户可访问
+ * 权限：所有已认证用户可访问
  */
 @Tag(name = "公共接口-药品查询", description = "药品搜索和查询接口（医生、护士、药师共用）")
 @Slf4j
 @RestController
 @RequestMapping(value = "/api/common/medicines", produces = MediaType.APPLICATION_JSON_VALUE)
+@PreAuthorize("isAuthenticated()")
 @RequiredArgsConstructor
 public class CommonMedicineController {
 

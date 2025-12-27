@@ -9,16 +9,19 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 /**
  * 公共数据接口控制器（用于各工作站）
+ * 权限：所有已认证用户可访问
  */
 @Slf4j
 @RestController
 @RequestMapping("/api/common/data")
+@PreAuthorize("isAuthenticated()")
 @RequiredArgsConstructor
 @Tag(name = "公共接口-基础数据", description = "提供科室、医生等基础数据查询，供各工作站使用")
 public class BasicDataController {

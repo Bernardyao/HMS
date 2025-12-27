@@ -36,6 +36,7 @@ bin/
 
 # Docs: ignore all, but allow specific files and API folder
 docs/*
+!docs/sql/
 
 # Local tools / assistants
 .copilot/

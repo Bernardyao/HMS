@@ -21,21 +21,28 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 
 /**
- * dev 环境安全配置：全部放开，便于联调与接口测试。
- * 
+ * dev 环境安全配置：启用宽松的安全策略用于开发调试。
+ *
  * <p><b>重要说明：</b>
  * <ul>
- *   <li>{@code @EnableMethodSecurity(prePostEnabled = false)} - 禁用方法级别安全检查</li>
- *   <li>虽然代码中使用了 {@code @PreAuthorize} 注解，但在 dev 环境下<b>不生效</b></li>
- *   <li>所有接口完全开放，无需认证，方便开发调试</li>
- *   <li>test/prod 环境会启用 {@code prePostEnabled = true}，此时 @PreAuthorize 才生效</li>
+ *   <li>{@code @EnableMethodSecurity(prePostEnabled = true)} - 启用方法级别安全检查</li>
+ *   <li>保留 @PreAuthorize 注解的验证，确保安全代码在开发环境也生效</li>
+ *   <li>登录和 Swagger 接口无需认证，方便开发调试</li>
+ *   <li>业务接口需要认证，但可以使用测试账号进行开发</li>
+ *   <li>test/prod 环境使用更严格的 {@code SecurityConfig}</li>
+ * </ul>
+ *
+ * <p><b>安全警告：</b>
+ * <ul>
+ *   <li>此配置仅用于本地开发，绝不能用于生产环境</li>
+ *   <li>生产环境会自动使用 {@code SecurityConfig}（@Profile("!dev")）</li>
  * </ul>
  */
 @Slf4j
 @Configuration
 @Profile("dev")
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = false)
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
 public class DevSecurityConfig {
 
@@ -47,8 +54,20 @@ public class DevSecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .authorizeHttpRequests(auth -> {
-                    log.warn("⚠️  开发测试模式：所有接口完全开放，无需任何认证！");
-                    auth.anyRequest().permitAll();
+                    log.warn("⚠️  开发模式：登录和 Swagger 无需认证，业务接口需要认证");
+                    // 登录接口：开放
+                    auth.requestMatchers("/auth/**").permitAll();
+                    // Swagger/Knife4j：开放（开发环境）
+                    auth.requestMatchers(
+                        "/doc.html",
+                        "/swagger-ui/**",
+                        "/v3/api-docs/**",
+                        "/swagger-resources/**",
+                        "/webjars/**",
+                        "/favicon.ico"
+                    ).permitAll();
+                    // 其余接口：需要认证（保留 @PreAuthorize 验证）
+                    auth.anyRequest().authenticated();
                 })
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
