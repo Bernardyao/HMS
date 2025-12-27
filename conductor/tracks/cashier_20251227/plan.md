@@ -22,7 +22,7 @@ Focus: Establishing the database schema and state definitions required for charg
 ## Phase 2: Core Business Logic - Charging & Mock Payment
 Focus: Implementing the service layer for creating charges and processing payments.
 
-- [ ] Task: Implement `ChargeService.createCharge()`
+- [x] Task: Implement `ChargeService.createCharge()` (e43c744)
     - Implement aggregation and validation logic.
     - **Test:** Unit tests for calculation and validation.
 - [ ] Task: Refactor `PrescriptionService` for Charging Integration
